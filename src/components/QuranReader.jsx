@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { useFirebaseUser } from "../hooks/useFirebaseUser"; 
 
 // ─── Surah List ───
 const SURAHS = [
@@ -590,6 +591,8 @@ const stopSpeaking = () => {
 };
 
 export default function QuranReader() {
+   const { userId, loading: userLoading, loadBookmarks, saveBookmarks } = useFirebaseUser(); 
+
   const [view, setView] = useState("list");
   const [selectedSurah, setSelectedSurah] = useState(null);
   const [ayahs, setAyahs] = useState([]);
@@ -611,7 +614,18 @@ export default function QuranReader() {
     s.meaning.toLowerCase().includes(searchQuery.toLowerCase()) ||
     String(s.number).includes(searchQuery)
   );
-
+ useEffect(() => {
+    if (!userId) return;
+    const fetchBookmarks = async () => {
+      const saved = await loadBookmarks();
+      setBookmarks(saved);
+    };
+    fetchBookmarks();
+  }, [userId]);
+   useEffect(() => {
+    if (!userId || bookmarks.length === 0) return;
+    saveBookmarks(bookmarks);
+  }, [bookmarks, userId]);
   const loadSurah = async (surah) => {
     setSelectedSurah(surah);
     setView("reader");
@@ -723,12 +737,14 @@ export default function QuranReader() {
     else if (mode === "translation") playTranslation(ayah);
     else playBoth(ayah);
   };
-
   const toggleBookmark = (ayahNumber) => {
     const key = `${selectedSurah.number}:${ayahNumber}`;
-    setBookmarks(prev =>
-      prev.includes(key) ? prev.filter(b => b !== key) : [...prev, key]
-    );
+    setBookmarks(prev => {
+      const newBookmarks = prev.includes(key) 
+        ? prev.filter(b => b !== key) 
+        : [...prev, key];
+      return newBookmarks;
+    });
   };
 
   const isBookmarked = (ayahNumber) =>

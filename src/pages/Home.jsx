@@ -1,4 +1,5 @@
 import { useNavigate } from 'react-router-dom'
+import IslamicAd from '../components/IslamicAd';
 
 const DAILY_AYAHS = [
   { arabic: "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا", translation: "Toh beshak mushkil ke saath aasaani hai.", surah: "Al-Inshirah", ayah: "94:5" },
@@ -24,6 +25,7 @@ export default function Home() {
   const greeting = hour < 12 ? 'Subah Bakhair' : hour < 17 ? 'Assalamu Alaikum' : 'Shab Bakhair'
 
   return (
+   <>
     <div style={{
       maxWidth: '480px', margin: '0 auto',
       padding: '28px 16px 16px',
@@ -36,12 +38,25 @@ export default function Home() {
         <div style={{ fontSize: '12px', color: '#6a5f52', letterSpacing: '2px', marginBottom: '4px' }}>
           {greeting} 🌙
         </div>
-        <div style={{
-          fontSize: '32px', color: '#C9A84C',
-          fontFamily: "'Amiri', serif", letterSpacing: '4px', opacity: 0.8,
-        }}>
-          ﷽
-        </div>
+    <div style={{
+  color: '#C9A84C',
+  fontFamily: "'Amiri', serif",
+  opacity: 0.9,
+  lineHeight: '1.2',
+
+  // 🔥 Responsive magic
+  fontSize: 'clamp(28px, 8vw, 48px)',  // min 28px, max 48px
+  letterSpacing: 'clamp(2px, 1vw, 6px)',
+
+  // Centering + elegance
+  textAlign: 'center',
+  marginTop: '6px',
+
+  // Soft glow effect
+  textShadow: '0 0 25px rgba(201,168,76,0.25)',
+}}>
+  ﷽
+</div>
         <div style={{
           width: '48px', height: '1px',
           background: 'linear-gradient(90deg, #C9A84C, transparent)',
@@ -143,12 +158,66 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      <div style={{ textAlign: 'center', marginTop: '40px', color: '#2a2520', fontSize: '11px' }}>
+      {/* <div style={{ textAlign: 'center', marginTop: '40px', color: '#2a2520', fontSize: '11px' }}>
         <div style={{ fontFamily: "'Amiri', serif", fontSize: '16px', color: '#C9A84C', opacity: 0.3, marginBottom: '4px' }}>
           صدقہ جاریہ
         </div>
         Sadqa-e-Jariya • Free Forever • No Ads
-      </div>
+      </div> */}
+      <div style={{ textAlign: 'center', marginTop: '60px', paddingBottom: '20px' }}>
+  <div style={{ 
+    width: '40px', 
+    height: '1px', 
+    background: 'linear-gradient(90deg, transparent, #C9A84C, transparent)', 
+    margin: '0 auto 16px' 
+  }} />
+  
+  <p style={{ 
+    color: '#5a5040', 
+    fontSize: '11px', 
+    letterSpacing: '2px',
+    margin: '0 0 4px'
+  }}>
+    ❤️   Developed by 
+  </p>
+  
+  <p style={{ 
+    color: '#C9A84C', 
+    fontSize: '14px', 
+    letterSpacing: '3px',
+    fontWeight: '400',
+    margin: 0,
+    textShadow: '0 0 20px rgba(201,168,76,0.2)'
+  }}>
+     Alfiya • For the sake of Allah
+  </p>
+   <p style={{ 
+    color: '#C9A84C', 
+    fontSize: '14px', 
+    letterSpacing: '3px',
+    fontWeight: '400',
+    margin: 0,
+    textShadow: '0 0 20px rgba(201,168,76,0.2)'
+  }}>
+    If you benefited, make dua for my Abbu 🤲
+  </p>
+   <p style={{color: '#5a5040', fontSize: '11px', letterSpacing: '2px'}}>
+    "InshaAllah, beneficial for the Ummah"
+  </p>
+  <p style={{ 
+    color: '#3a3028', 
+    fontSize: '10px', 
+    marginTop: '8px',
+    letterSpacing: '1px'
+  }}>
+    Sadqa-e-Jariya • Free Forever
+  </p>
+</div>
     </div>
+    <div style={{ marginTop: '40px' }}>
+  {/* <IslamicAd />
+  <IslamicAd /> */}
+</div>
+ </>
   )
 }

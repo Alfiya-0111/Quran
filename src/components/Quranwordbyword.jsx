@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-
+import { useFirebaseUser } from "../hooks/useFirebaseUser";
 const SAMPLE_SURAHS = [
   { number: 1, name: "Al-Fatihah", arabic: "الفاتحة", ayahs: 7 },
   { number: 112, name: "Al-Ikhlas", arabic: "الإخلاص", ayahs: 4 },
@@ -21,6 +21,8 @@ const WORD_SYSTEM_PROMPT = `You are a Quran Arabic language expert. When given a
 - tip: one sentence memory tip in Hinglish to remember this word`;
 
 export default function WordByWord() {
+    const { userId, loadVocab, saveVocab } = useFirebaseUser();
+
   const [selectedSurah, setSelectedSurah] = useState(SAMPLE_SURAHS[0]);
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(false);
@@ -36,6 +38,18 @@ export default function WordByWord() {
   const [apiError, setApiError] = useState("");
 
   useEffect(() => { loadSurah(selectedSurah); }, [selectedSurah]);
+  useEffect(() => {
+    if (!userId) return;
+    const fetchVocab = async () => {
+      const words = await loadVocab();
+      setSavedWords(words);
+    };
+    fetchVocab();
+  }, [userId]);
+  useEffect(() => {
+    if (!userId) return;
+    saveVocab(savedWords);
+  }, [savedWords, userId]);
 
   const loadSurah = async (surah) => {
     setLoading(true);
@@ -128,9 +142,10 @@ export default function WordByWord() {
 
   const saveWord = (wordData) => {
     if (!wordData) return;
-    if (!savedWords.find(w => w.word === wordData.word)) {
-      setSavedWords(prev => [...prev, wordData]);
-    }
+    setSavedWords(prev => {
+      if (prev.find(w => w.word === wordData.word)) return prev;
+      return [...prev, wordData];
+    });
   };
 
   const startQuiz = () => {
