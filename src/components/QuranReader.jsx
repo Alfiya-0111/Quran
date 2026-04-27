@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef } from "react";
 import { useFirebaseUser } from "../hooks/useFirebaseUser";
 
+
 // ─── Surah List ───
 const SURAHS = [
   { number: 1, name: "Al-Fatihah", arabic: "الفاتحة", meaning: "The Opening", ayahs: 7 },
