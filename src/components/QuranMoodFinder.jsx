@@ -11,91 +11,175 @@ const moods = [
   { id: "fearful", label: "ڈر لگ رہا", emoji: "😰", english: "Fearful / Scared", color: "#8E44AD" },
 ];
 
-const moodPrompts = {
-  anxious: "I am feeling very anxious and worried. Please find me 3 Quran ayahs (with surah name, ayah number, Arabic text, and Urdu/Hindi translation) that bring peace and calm to an anxious heart. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  sad: "I am feeling very sad and heartbroken. Please find me 3 Quran ayahs that console and comfort a sad heart. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  hopeless: "I am feeling hopeless and lost in life. Please find me 3 Quran ayahs about hope, Allah's mercy, and never giving up. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  grateful: "I am feeling grateful and blessed. Please find me 3 Quran ayahs about gratitude, shukr, and recognizing Allah's blessings. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  angry: "I am feeling very angry and frustrated. Please find me 3 Quran ayahs about controlling anger, patience, and forgiveness. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  lonely: "I am feeling very lonely and isolated. Please find me 3 Quran ayahs reminding that Allah is always near and we are never alone. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  seeking: "I am seeking guidance in life and feel confused about my path. Please find me 3 Quran ayahs about guidance, the right path, and trusting Allah's plan. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
-  fearful: "I am feeling very fearful and scared. Please find me 3 Quran ayahs that remove fear and replace it with trust in Allah. Format as JSON array with fields: arabic, translation, surah, ayahNumber, reflection.",
+// Hardcoded curated ayahs — no AI needed, instant, always works!
+const MOOD_AYAHS = {
+  anxious: [
+    {
+      arabic: "أَلَا بِذِكْرِ اللَّهِ تَطْمَئِنُّ الْقُلُوبُ",
+      translation: "Sun lo! Allah ki yaad se hi dilon ko sukoon milta hai.",
+      surah: "Ar-Ra'd", ayahNumber: 28,
+      reflection: "Jab anxiety ho, toh zikr karo — 'SubhanAllah', 'Alhamdulillah'. Dil khud theek ho jaata hai.",
+    },
+    {
+      arabic: "وَلَا تَهِنُوا وَلَا تَحْزَنُوا وَأَنتُمُ الْأَعْلَوْنَ إِن كُنتُم مُّؤْمِنِينَ",
+      translation: "Aur na kamzor paro, na gham karo, tum hi ghalib ho agar momin ho.",
+      surah: "Aali Imran", ayahNumber: 139,
+      reflection: "Pareshan hona zaroori nahi — Allah ne tumhe in mushkilon se bada banaya hai.",
+    },
+    {
+      arabic: "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا إِنَّ مَعَ الْعُسْرِ يُسْرًا",
+      translation: "Toh beshak mushkil ke saath aasaani hai. Beshak mushkil ke saath aasaani hai.",
+      surah: "Al-Inshirah", ayahNumber: "5-6",
+      reflection: "Allah ne do baar kaha — mushkil ek hai, magar aasaaniyan do hain. Umeed raho!",
+    },
+  ],
+  sad: [
+    {
+      arabic: "وَلَا تَيْأَسُوا مِن رَّوْحِ اللَّهِ إِنَّهُ لَا يَيْأَسُ مِن رَّوْحِ اللَّهِ إِلَّا الْقَوْمُ الْكَافِرُونَ",
+      translation: "Aur Allah ki rahmat se mayoos mat ho. Allah ki rahmat se sirf kaafir hi mayoos hote hain.",
+      surah: "Yusuf", ayahNumber: 87,
+      reflection: "Udaasi mein bhi umeed rakho — Allah ka raham hamesha maujood hai.",
+    },
+    {
+      arabic: "إِنَّ اللَّهَ مَعَ الصَّابِرِينَ",
+      translation: "Beshak Allah sabr karne walon ke saath hai.",
+      surah: "Al-Baqarah", ayahNumber: 153,
+      reflection: "Jab dil toot jaaye, sabr karo — Allah khud tumhare saath khada hai.",
+    },
+    {
+      arabic: "وَعَسَىٰ أَن تَكْرَهُوا شَيْئًا وَهُوَ خَيْرٌ لَّكُمْ",
+      translation: "Aur ho sakta hai ke tum kisi cheez ko na pasand karo aur woh tumhare liye behtar ho.",
+      surah: "Al-Baqarah", ayahNumber: 216,
+      reflection: "Jo kuch hua, shayad usme koi chupi hue bhalai hai — Allah ka plan hamesha behtar hota hai.",
+    },
+  ],
+  hopeless: [
+    {
+      arabic: "قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
+      translation: "Keh do: Aey mere bando jo apne aap pe zulm kar chuke hain, Allah ki rahmat se mayoos mat ho.",
+      surah: "Az-Zumar", ayahNumber: 53,
+      reflection: "Chahe kitna bhi bura kiya ho — Allah ki rahmat sab se badi hai. Wapas aa jao.",
+    },
+    {
+      arabic: "إِنَّهُ لَا يَيْأَسُ مِن رَّوْحِ اللَّهِ إِلَّا الْقَوْمُ الْكَافِرُونَ",
+      translation: "Allah ki rahmat se sirf woh log mayoos hote hain jo iman nahi rakhte.",
+      surah: "Yusuf", ayahNumber: 87,
+      reflection: "Mayoosi kufr ki alamat hai — momin hamesha umeedwar rehta hai.",
+    },
+    {
+      arabic: "وَمَن يَتَوَكَّلْ عَلَى اللَّهِ فَهُوَ حَسْبُهُ",
+      translation: "Aur jo Allah pe bharosa kare, woh uske liye kaafi hai.",
+      surah: "At-Talaq", ayahNumber: 3,
+      reflection: "Jab sab raaste band lagte hain, sirf Allah pe tawakkul karo — woh akela kaafi hai.",
+    },
+  ],
+  grateful: [
+    {
+      arabic: "لَئِن شَكَرْتُمْ لَأَزِيدَنَّكُمْ",
+      translation: "Agar tum shukr karo toh main tumhe aur zyada dunga.",
+      surah: "Ibrahim", ayahNumber: 7,
+      reflection: "Shukr karo — Allah ne promise kiya hai ke aur zyada milega!",
+    },
+    {
+      arabic: "وَإِن تَعُدُّوا نِعْمَةَ اللَّهِ لَا تُحْصُوهَا",
+      translation: "Aur agar tum Allah ki naimaton ko gino toh ginti nahi kar sakte.",
+      surah: "An-Nahl", ayahNumber: 18,
+      reflection: "Har cheez jo hai — sehat, ghar, rishte — sab Allah ka inaam hai. Shukar ada karo.",
+    },
+    {
+      arabic: "فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ",
+      translation: "Tum mujhe yaad karo, main tumhe yaad karunga. Aur mera shukar karo, nakhusgiri mat karo.",
+      surah: "Al-Baqarah", ayahNumber: 152,
+      reflection: "Zikr aur shukar — yeh do cheezein Allah se qareeb karti hain.",
+    },
+  ],
+  angry: [
+    {
+      arabic: "وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ وَاللَّهُ يُحِبُّ الْمُحْسِنِينَ",
+      translation: "Aur woh jo gusse ko pee jaate hain aur logon ko maaf kar dete hain. Allah neki karne walon se muhabbat karta hai.",
+      surah: "Aali Imran", ayahNumber: 134,
+      reflection: "Gussa pee lena — yeh kamzori nahi, balki Allah ko pasand hai. Maafi dena sabse bada hua.",
+    },
+    {
+      arabic: "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ",
+      translation: "Maafi ka raasta apnao, bhalaai ka hukm do, aur jahilon se munh phair lo.",
+      surah: "Al-A'raf", ayahNumber: 199,
+      reflection: "Jahil se jhagda mat karo — unhe chhod do, yahi aql hai.",
+    },
+    {
+      arabic: "وَلَمَن صَبَرَ وَغَفَرَ إِنَّ ذَٰلِكَ لَمِنْ عَزْمِ الْأُمُورِ",
+      translation: "Aur jo sabr kare aur maaf kar de — yeh toh bari himmat ka kaam hai.",
+      surah: "Ash-Shura", ayahNumber: 43,
+      reflection: "Maaf karna sabse mushkil kaam hai — magar yeh bahaduri ki nishani hai.",
+    },
+  ],
+  lonely: [
+    {
+      arabic: "وَهُوَ مَعَكُمْ أَيْنَ مَا كُنتُمْ",
+      translation: "Aur woh tumhare saath hai jahan bhi tum ho.",
+      surah: "Al-Hadid", ayahNumber: 4,
+      reflection: "Tum kabhi akele nahi — Allah hamesha saath hai, har jagah, har waqt.",
+    },
+    {
+      arabic: "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
+      translation: "Jab mere bande mujhse mere baare mein puchain, main qareeb hoon. Duaa karne wale ki duaa sunta hoon.",
+      surah: "Al-Baqarah", ayahNumber: 186,
+      reflection: "Allah door nahi — seedha baat karo, woh sunta hai. Duaa karo abhi.",
+    },
+    {
+      arabic: "لَا تَحْزَنْ إِنَّ اللَّهَ مَعَنَا",
+      translation: "Gham mat karo, beshak Allah hamare saath hai.",
+      surah: "At-Tawbah", ayahNumber: 40,
+      reflection: "Nabi SAW ne bhi yahi kaha tha cave mein — aur tum bhi yahi jaan lo.",
+    },
+  ],
+  seeking: [
+    {
+      arabic: "اهْدِنَا الصِّرَاطَ الْمُسْتَقِيمَ",
+      translation: "Hamen seedha raasta dikha.",
+      surah: "Al-Fatihah", ayahNumber: 6,
+      reflection: "Yeh duaa roz padhte ho — seedha raasta maango, Allah zaroor dikhayega.",
+    },
+    {
+      arabic: "وَمَن يُؤْمِن بِاللَّهِ يَهْدِ قَلْبَهُ",
+      translation: "Aur jo Allah pe iman rakhta hai, woh uske dil ko hidayat deta hai.",
+      surah: "At-Taghabun", ayahNumber: 11,
+      reflection: "Raasta confuse lagta hai? Iman mazboot karo — dil khud raah pakad leta hai.",
+    },
+    {
+      arabic: "إِنَّ اللَّهَ لَا يُغَيِّرُ مَا بِقَوْمٍ حَتَّىٰ يُغَيِّرُوا مَا بِأَنفُسِهِمْ",
+      translation: "Beshak Allah kisi qaum ki halat nahi badalta jab tak woh khud apni halat na badlein.",
+      surah: "Ar-Ra'd", ayahNumber: 11,
+      reflection: "Guidance ka pehla qadam khud uthao — Allah baqi raasta khol deta hai.",
+    },
+  ],
+  fearful: [
+    {
+      arabic: "لَا تَخَفْ وَلَا تَحْزَنْ إِنَّ اللَّهَ مَعَنَا",
+      translation: "Dar mat aur gham mat kha — beshak Allah hamare saath hai.",
+      surah: "At-Tawbah", ayahNumber: 40,
+      reflection: "Nabi SAW ka yeh farmaan tumhare liye bhi hai — Allah saath hai toh dar kaisa?",
+    },
+    {
+      arabic: "أَلَا إِنَّ أَوْلِيَاءَ اللَّهِ لَا خَوْفٌ عَلَيْهِمْ وَلَا هُمْ يَحْزَنُونَ",
+      translation: "Sun lo! Allah ke dosto pe na koi dar hai aur na woh ghamgeen hote hain.",
+      surah: "Yunus", ayahNumber: 62,
+      reflection: "Allah se dosti karlo — phir duniya ka koi dar nahi sataayega.",
+    },
+    {
+      arabic: "حَسْبُنَا اللَّهُ وَنِعْمَ الْوَكِيلُ",
+      translation: "Hamare liye Allah kaafi hai aur woh kya achha kaarsa'az hai!",
+      surah: "Aali Imran", ayahNumber: 173,
+      reflection: "Jab dar lage, yeh padhte raho — Ibrahim AS aur Nabi SAW ne bhi yahi kaha tha.",
+    },
+  ],
 };
-
-const SYSTEM_PROMPT = `You are a knowledgeable Islamic scholar assistant specializing in Quran. 
-When asked for ayahs based on mood, provide ACCURATE ayahs with correct Arabic text, surah names, and ayah numbers.
-Always respond ONLY with a valid JSON array. No markdown, no backticks, no extra text. Just pure JSON.
-The translation should be in simple Urdu/Hindi that anyone can understand.
-The reflection should be 1-2 sentences in Hinglish (Hindi-English mix) connecting the ayah to the emotion.`;
 
 export default function QuranMoodFinder() {
   const [selectedMood, setSelectedMood] = useState(null);
-  const [ayahs, setAyahs] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState("");
   const [activeCard, setActiveCard] = useState(null);
 
-const findAyahs = async (mood) => {
-  setSelectedMood(mood);
-  setLoading(true);
-  setError("");
-  setAyahs([]);
-  setActiveCard(null);
-
-  // Pehle check karo localStorage mein hai ya nahi
-  const cacheKey = `quran_mood_${mood.id}`;
-  const cached = localStorage.getItem(cacheKey);
-  
-  if (cached) {
-    setAyahs(JSON.parse(cached));
-    setLoading(false);
-    return;
-  }
-
-  try {
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": import.meta.env.VITE_GEMINI_API_KEY,
-        },
-        body: JSON.stringify({
-          systemInstruction: {
-            parts: [{ text: SYSTEM_PROMPT }],
-          },
-          contents: [
-            {
-              role: "user",
-              parts: [{ text: moodPrompts[mood.id] }],
-            },
-          ],
-        }),
-      }
-    );
-
-    if (!response.ok) {
-      const errData = await response.json().catch(() => ({}));
-      throw new Error(errData.error?.message || `HTTP ${response.status}`);
-    }
-
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "[]";
-    const clean = text.replace(/```json|```/g, "").trim();
-    const parsed = JSON.parse(clean);
-    
-    // LocalStorage mein save karo
-    localStorage.setItem(cacheKey, JSON.stringify(parsed));
-    
-    setAyahs(parsed);
-  } catch (err) {
-    console.error("API Error:", err);
-    setError("Aapka free quota khatam ho gaya hai. Thodi der baad try karein ya nayi API key use karein.");
-  } finally {
-    setLoading(false);
-  }
-};
+  const ayahs = selectedMood ? MOOD_AYAHS[selectedMood.id] : [];
   const activeMoodObj = moods.find((m) => m.id === selectedMood?.id);
 
   return (
@@ -140,7 +224,7 @@ const findAyahs = async (mood) => {
               {moods.map((mood) => (
                 <button
                   key={mood.id}
-                  onClick={() => findAyahs(mood)}
+                  onClick={() => { setSelectedMood(mood); setActiveCard(null); }}
                   style={{
                     background: "rgba(255,255,255,0.03)",
                     border: "1px solid rgba(255,255,255,0.08)",
@@ -175,37 +259,8 @@ const findAyahs = async (mood) => {
           </div>
         )}
 
-        {/* Loading */}
-        {loading && (
-          <div style={{ textAlign: "center", padding: "60px 20px" }}>
-            <div style={{ fontSize: "36px", marginBottom: "20px", animation: "pulse 1.5s infinite" }}>📿</div>
-            <p style={{ color: "#C9A84C", fontSize: "16px", letterSpacing: "1px" }}>
-              Quran se aapke liye dhundh raha hoon...
-            </p>
-            <p style={{ color: "#5a4f42", fontSize: "13px", marginTop: "8px" }}>
-              {activeMoodObj?.label} — {activeMoodObj?.english}
-            </p>
-            <style>{`@keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
-          </div>
-        )}
-
-        {/* Error */}
-        {error && (
-          <div style={{ textAlign: "center", padding: "40px", color: "#C0392B" }}>
-            <div style={{ fontSize: "30px", marginBottom: "12px" }}>⚠️</div>
-            <p>{error}</p>
-            <button onClick={() => setSelectedMood(null)} style={{
-              marginTop: "16px", background: "transparent",
-              border: "1px solid #C9A84C", color: "#C9A84C",
-              padding: "10px 24px", borderRadius: "8px", cursor: "pointer",
-            }}>
-              Wapas Jao
-            </button>
-          </div>
-        )}
-
         {/* Ayahs */}
-        {ayahs.length > 0 && !loading && (
+        {selectedMood && ayahs.length > 0 && (
           <div>
             <div style={{ textAlign: "center", marginBottom: "32px" }}>
               <div style={{ fontSize: "36px", marginBottom: "8px" }}>{activeMoodObj?.emoji}</div>
@@ -266,7 +321,7 @@ const findAyahs = async (mood) => {
 
             <div style={{ textAlign: "center", marginTop: "32px" }}>
               <button
-                onClick={() => { setSelectedMood(null); setAyahs([]); }}
+                onClick={() => { setSelectedMood(null); setActiveCard(null); }}
                 style={{
                   background: "transparent", border: "1px solid rgba(201,168,76,0.4)",
                   color: "#C9A84C", padding: "12px 32px", borderRadius: "30px",
