@@ -7,19 +7,25 @@ import {
   useLocation,
 } from "react-router-dom";
 
+// import { FaPrayingHands } from "react-icons/fa";
+import { MdOutlineWbSunny } from "react-icons/md";
 import {
   FaMosque,
   FaBookOpen,
   FaHeart,
+ 
   FaLanguage,
   FaComments,
 } from "react-icons/fa";
+import { BsPeople } from 'react-icons/bs';
 
 import Home from "./pages/Home";
 import Reader from "./pages/Reader";
 import MoodFinder from "./pages/MoodFinder";
 import Vocabulary from "./pages/Vocabulary";
 import TafsirChat from "./pages/TafsirChat";
+import Duas from './pages/Duas'
+import FaimilyRead from "./pages/FaimilyRead";
 
 import "./App.css";
 
@@ -170,6 +176,8 @@ function BottomNav() {
       icon: <FaHeart />,
       label: "Mood",
     },
+    { path: '/duas', icon: "🤲", label: 'Duas' },
+    { path:"/family", icon:<BsPeople/>, label:"Faimly"},
     {
       path: "/vocab",
       icon: <FaLanguage />,
@@ -303,7 +311,15 @@ function App() {
               </Layout>
             }
           />
-
+<Route path="/duas" element={<Layout><Duas /></Layout>} />
+<Route
+  path="/family"
+  element={
+    <Layout>
+      <FaimilyRead />
+    </Layout>
+  }
+/>
           <Route
             path="/vocab"
             element={

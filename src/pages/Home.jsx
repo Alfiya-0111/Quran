@@ -4,6 +4,10 @@ import { FiBookOpen, FiHeart, FiType, FiMessageSquare, FiMoon } from 'react-icon
 import { HiSparkles } from 'react-icons/hi2';
 import { IoHandLeftOutline } from 'react-icons/io5';
 import { RiUserHeartLine } from 'react-icons/ri';
+import { BsPeople } from 'react-icons/bs';
+
+// import { FaPrayingHands } from "react-icons/fa";
+import { MdOutlineWbSunny } from "react-icons/md";
 
 const DAILY_AYAHS = [
   { arabic: "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا", translation: "Toh beshak mushkil ke saath aasaani hai.", surah: "Al-Inshirah", ayah: "94:5" },
@@ -39,6 +43,22 @@ const FEATURE_CARDS = [
     color: '#6B7FD7',
     path: '/mood',
   },
+  { Icon: "🤲",
+     title: 'Duas & Azkar', 
+     sub: 'Subah shaam ki duaain',
+      badge: 'Tasbeeh • Daily',
+       color: '#E8A838',
+        path: '/duas'
+       },
+    {
+  Icon: BsPeople,        
+  title: "Family Share",
+  sub: "family",            
+  badge: "Family parah",    
+  color: "#ffffff",          
+  path: "/family",
+  label: "Family",
+},
   {
     Icon: FiType,
     title: 'Word-by-Word',
@@ -154,16 +174,21 @@ export default function Home() {
             }}
           >
             {/* Icon */}
-            <div style={{
-              width: '38px', height: '38px',
-              background: `${f.color}18`,
-              border: `1px solid ${f.color}40`,
-              borderRadius: '12px',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              marginBottom: '12px',
-            }}>
-              <f.Icon size={18} color={f.color} />
-            </div>
+           <div style={{
+  width: '38px', height: '38px',
+  background: `${f.color}18`,
+  border: `1px solid ${f.color}40`,
+  borderRadius: '12px',
+  display: 'flex', alignItems: 'center', justifyContent: 'center',
+  marginBottom: '12px',
+  fontSize: '18px',  // emoji size
+}}>
+  {typeof f.Icon === 'string' ? (
+    f.Icon  // emoji string — no size/color props
+  ) : (
+    <f.Icon size={18} color={f.color} />  // react-icon component
+  )}
+</div>
             <div style={{ fontSize: '14px', color: '#e2d9c8', marginBottom: '3px' }}>{f.title}</div>
             <div style={{ fontSize: '11px', color: '#6a5f52', marginBottom: '8px' }}>{f.sub}</div>
             <div style={{
