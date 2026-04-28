@@ -1,17 +1,31 @@
 import { useState } from "react";
+import {
+  FiAlertCircle,
+  FiCloudRain,
+  FiMoon,
+  FiStar,
+  FiZap,
+  FiWifi,
+  FiCompass,
+  FiEyeOff,
+  FiChevronDown,
+  FiChevronUp,
+  FiArrowLeft,
+} from "react-icons/fi";
+import { RiHeartLine } from "react-icons/ri";
+import { TbBulb } from "react-icons/tb";
 
 const moods = [
-  { id: "anxious", label: "پریشان ہوں", emoji: "😟", english: "Anxious / Worried", color: "#6B7FD7" },
-  { id: "sad", label: "اداس ہوں", emoji: "😢", english: "Sad / Heartbroken", color: "#7E6FAB" },
-  { id: "hopeless", label: "امید نہیں", emoji: "🌑", english: "Hopeless / Lost", color: "#4A5568" },
-  { id: "grateful", label: "شکرگزار ہوں", emoji: "🌟", english: "Grateful / Blessed", color: "#C9A84C" },
-  { id: "angry", label: "غصہ ہے", emoji: "😤", english: "Angry / Frustrated", color: "#C0392B" },
-  { id: "lonely", label: "اکیلا محسوس", emoji: "🌙", english: "Lonely / Isolated", color: "#2C7873" },
-  { id: "seeking", label: "رہنمائی چاہیے", emoji: "🧭", english: "Seeking Guidance", color: "#27AE60" },
-  { id: "fearful", label: "ڈر لگ رہا", emoji: "😰", english: "Fearful / Scared", color: "#8E44AD" },
+  { id: "anxious",  label: "پریشان ہوں",    Icon: FiAlertCircle, english: "Anxious / Worried",   color: "#6B7FD7" },
+  { id: "sad",      label: "اداس ہوں",       Icon: FiCloudRain,   english: "Sad / Heartbroken",   color: "#7E6FAB" },
+  { id: "hopeless", label: "امید نہیں",      Icon: FiEyeOff,      english: "Hopeless / Lost",     color: "#4A5568" },
+  { id: "grateful", label: "شکرگزار ہوں",   Icon: FiStar,        english: "Grateful / Blessed",  color: "#C9A84C" },
+  { id: "angry",    label: "غصہ ہے",         Icon: FiZap,         english: "Angry / Frustrated",  color: "#C0392B" },
+  { id: "lonely",   label: "اکیلا محسوس",   Icon: FiWifi,        english: "Lonely / Isolated",   color: "#2C7873" },
+  { id: "seeking",  label: "رہنمائی چاہیے", Icon: FiCompass,     english: "Seeking Guidance",    color: "#27AE60" },
+  { id: "fearful",  label: "ڈر لگ رہا",     Icon: FiMoon,        english: "Fearful / Scared",    color: "#8E44AD" },
 ];
 
-// Hardcoded curated ayahs — no AI needed, instant, always works!
 const MOOD_AYAHS = {
   anxious: [
     {
@@ -246,7 +260,16 @@ export default function QuranMoodFinder() {
                     e.currentTarget.style.boxShadow = "none";
                   }}
                 >
-                  <div style={{ fontSize: "30px", marginBottom: "8px" }}>{mood.emoji}</div>
+                  {/* React Icon in colored circle */}
+                  <div style={{
+                    width: "48px", height: "48px", margin: "0 auto 10px",
+                    background: `rgba(${hexToRgb(mood.color)}, 0.12)`,
+                    border: `1px solid rgba(${hexToRgb(mood.color)}, 0.3)`,
+                    borderRadius: "50%",
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                  }}>
+                    <mood.Icon size={22} color={mood.color} />
+                  </div>
                   <div style={{ fontSize: "17px", fontFamily: "'Noto Nastaliq Urdu', serif", lineHeight: 1.8 }}>
                     {mood.label}
                   </div>
@@ -263,7 +286,16 @@ export default function QuranMoodFinder() {
         {selectedMood && ayahs.length > 0 && (
           <div>
             <div style={{ textAlign: "center", marginBottom: "32px" }}>
-              <div style={{ fontSize: "36px", marginBottom: "8px" }}>{activeMoodObj?.emoji}</div>
+              {/* Large mood icon */}
+              <div style={{
+                width: "64px", height: "64px", margin: "0 auto 12px",
+                background: `rgba(${hexToRgb(activeMoodObj?.color || "#C9A84C")}, 0.12)`,
+                border: `1px solid rgba(${hexToRgb(activeMoodObj?.color || "#C9A84C")}, 0.35)`,
+                borderRadius: "50%",
+                display: "flex", alignItems: "center", justifyContent: "center",
+              }}>
+                {activeMoodObj && <activeMoodObj.Icon size={28} color={activeMoodObj.color} />}
+              </div>
               <h2 style={{ fontSize: "18px", fontWeight: "400", color: activeMoodObj?.color, margin: "0 0 4px" }}>
                 {activeMoodObj?.label}
               </h2>
@@ -290,7 +322,13 @@ export default function QuranMoodFinder() {
                   }}>
                     {ayah.surah} • Ayah {ayah.ayahNumber}
                   </div>
-                  <div style={{ color: "#3a3028", fontSize: "18px" }}>{activeCard === i ? "▲" : "▼"}</div>
+                  {/* Chevron icon */}
+                  <div style={{ color: "#5a5040", display: "flex", alignItems: "center" }}>
+                    {activeCard === i
+                      ? <FiChevronUp size={18} />
+                      : <FiChevronDown size={18} />
+                    }
+                  </div>
                 </div>
 
                 <div style={{
@@ -309,7 +347,7 @@ export default function QuranMoodFinder() {
                 {activeCard === i && (
                   <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                      <span style={{ fontSize: "16px", flexShrink: 0 }}>💭</span>
+                      <TbBulb size={18} color={activeMoodObj?.color || "#C9A84C"} style={{ flexShrink: 0, marginTop: "2px", opacity: 0.85 }} />
                       <p style={{ color: activeMoodObj?.color || "#C9A84C", fontSize: "13px", lineHeight: "1.8", margin: 0, opacity: 0.9 }}>
                         {ayah.reflection}
                       </p>
@@ -326,11 +364,12 @@ export default function QuranMoodFinder() {
                   background: "transparent", border: "1px solid rgba(201,168,76,0.4)",
                   color: "#C9A84C", padding: "12px 32px", borderRadius: "30px",
                   cursor: "pointer", fontSize: "14px", letterSpacing: "1px", transition: "all 0.3s",
+                  display: "inline-flex", alignItems: "center", gap: "8px",
                 }}
                 onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.1)"; }}
                 onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
               >
-                ← Dusra Mood Choose Karein
+                <FiArrowLeft size={15} /> Dusra Mood Choose Karein
               </button>
             </div>
           </div>

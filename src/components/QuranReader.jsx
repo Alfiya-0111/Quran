@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from "react";
+import { FiSearch, FiMic, FiMicOff } from "react-icons/fi";
 import { useFirebaseUser } from "../hooks/useFirebaseUser";
 
 
@@ -142,7 +143,7 @@ const toRomanUrdu = (urduText) => {
     "پہلے": "pehle", "بعد": "baad", "اب": "ab", "کل": "kal",
     "آج": "aaj", "ابھی": "abhii", "ہمیشہ": "hameshah",
     "اکثر": "aksar", "بالکل": "bilkuul", "پورا": "puuraa",
-    "نیا": "nayaa", "صاف": "saaf", "خوبصورت": "khoobsoorat",
+    "صاف": "saaf", "خوبصورت": "khoobsoorat",
     "وقت": "waqt", "دن": "din", "رات": "raat", "ہفتہ": "haftah",
     "مہینہ": "maheenah", "سال": "saal", "زمانہ": "zamaanah",
     "سلام": "salaam", "شادی": "shaadii", "نکاح": "nikaah",
@@ -152,7 +153,7 @@ const toRomanUrdu = (urduText) => {
     "نعمت": "nemat", "فضل": "fazl", "کرم": "karam",
     "حمد": "hamd", "تسبیح": "tasbiih", "درود": "daruud",
     "معاہدہ": "moaahedah", "وعدہ": "waadah", "قسم": "qasm",
-    "ظلم": "zulm", "انصاف": "insaaf", "عدالت": "adaalat",
+    "ظلم": "zulm", "عدالت": "adaalat",
     "قانون": "qaanoon", "حکومت": "hukumat", "ملک": "mulk",
     "شہر": "shehar", "گاؤں": "gaaun", "راستہ": "raastah",
     "مدد": "maddd", "تعاون": "taaawun", "شراکت": "shiraakat",
@@ -161,8 +162,8 @@ const toRomanUrdu = (urduText) => {
     "صحت": "sehat", "بیماری": "bimaarii", "دوا": "dawaa",
     "خوف": "khauf", "ہمت": "himmat", "یقین": "yaqiin",
     "امید": "ummiid", "خوشی": "khushii", "غم": "gham",
-    "درد": "dard", "صبر": "sabr", "شکر": "shukr", "رضا": "razaa",
-    "توبہ": "taubah", "استغفار": "istighfaar", "ذکر": "zikr",
+    "درد": "dard", "رضا": "razaa",
+    "استغفار": "istighfaar", "ذکر": "zikr",
     "دین": "diin", "ملت": "millat", "عقیدہ": "aqiidah",
     "شریعت": "shariiat", "حکمت": "hikmat", "معرفت": "marifat",
     "نیت": "niyat", "احساس": "ehsaas", "جذبہ": "jazbah",
@@ -231,6 +232,7 @@ export default function QuranReader() {
   const [ayahs, setAyahs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
+  const [isListening, setIsListening] = useState(false);
   const [selectedReciter, setSelectedReciter] = useState(RECITERS[0]);
   const [selectedTranslation, setSelectedTranslation] = useState(TRANSLATIONS[0]);
   const [playingAyah, setPlayingAyah] = useState(null);
@@ -240,6 +242,7 @@ export default function QuranReader() {
   const [bookmarks, setBookmarks] = useState([]);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const audioRef = useRef(null);
+  const recognitionRef = useRef(null);
 
   const filteredSurahs = SURAHS.filter(s =>
     s.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -263,7 +266,49 @@ export default function QuranReader() {
     saveBookmarks(bookmarks);
   }, [bookmarks, userId]);
 
-  // ─── Load Surah — translation & reciter as params (stale state fix) ───
+  // ─── Voice Search ───
+  const startVoiceSearch = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Aapka browser voice search support nahi karta");
+      return;
+    }
+
+    // Agar already sun raha hai toh band karo
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ur-PK";
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 3;
+    recognitionRef.current = recognition;
+
+    setIsListening(true);
+
+    recognition.onresult = (e) => {
+      // Sabse pehla result lo
+      const transcript = e.results[0][0].transcript;
+      setSearchQuery(transcript);
+      setIsListening(false);
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Voice error:", e.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+    };
+
+    recognition.start();
+  };
+
+  // ─── Load Surah ───
   const loadSurah = async (
     surah,
     translation = selectedTranslation,
@@ -310,7 +355,6 @@ export default function QuranReader() {
     setPlayingMode(null);
   };
 
-  // ─── Single Ayah: Arabic only ───
   const playArabic = (ayah) => {
     stopAllAudio();
     const audio = new Audio(ayah.audioUrl);
@@ -321,7 +365,6 @@ export default function QuranReader() {
     audio.onended = () => { setPlayingAyah(null); setPlayingMode(null); };
   };
 
-  // ─── Single Ayah: Translation only ───
   const playTranslation = (ayah) => {
     if (!window.speechSynthesis) {
       alert("Aapka browser TTS support nahi karta");
@@ -337,7 +380,6 @@ export default function QuranReader() {
     setTimeout(() => { setPlayingAyah(null); setPlayingMode(null); }, duration);
   };
 
-  // ─── Single Ayah: Arabic + Translation ───
   const playBoth = (ayah) => {
     stopAllAudio();
     setPlayingAyah(ayah.number);
@@ -364,18 +406,16 @@ export default function QuranReader() {
     else playBoth(ayah);
   };
 
-  // ─── Full Surah: Arabic only (sequential) ───
   const playAllSurah = () => {
     if (playingMode === "surah") { stopAllAudio(); return; }
     stopAllAudio();
     if (ayahs.length === 0) return;
 
     let index = 0;
-    let stopped = false;
 
     const playNext = () => {
-      if (stopped || index >= ayahs.length) {
-        if (!stopped) { setPlayingAyah(null); setPlayingMode(null); }
+      if (index >= ayahs.length) {
+        setPlayingAyah(null); setPlayingMode(null);
         return;
       }
       const ayah = ayahs[index];
@@ -384,19 +424,14 @@ export default function QuranReader() {
 
       const audio = new Audio(ayah.audioUrl);
       audioRef.current = audio;
-
       audio.onended = () => { index++; playNext(); };
       audio.onerror = () => { index++; playNext(); };
-
       audio.play().catch(() => { index++; playNext(); });
     };
 
-    // Override stopAllAudio to also set stopped flag
-    const origStop = audioRef;
     playNext();
   };
 
-  // ─── Full Surah: Arabic + Translation (sequential) ───
   const playAllWithTranslation = () => {
     if (playingMode === "surahBoth") { stopAllAudio(); return; }
     stopAllAudio();
@@ -415,16 +450,11 @@ export default function QuranReader() {
       setPlayingAyah(ayah.number);
       setPlayingMode("surahBoth");
 
-      // Step 1: Arabic audio
       const audio = new Audio(ayah.audioUrl);
       audioRef.current = audio;
 
       audio.onended = () => {
-        // Step 2: Translation TTS
-        const cleanText = ayah.translation
-          .replace(/[﴾﴿]/g, "")
-          .replace(/\s+/g, " ")
-          .trim();
+        const cleanText = ayah.translation.replace(/[﴾﴿]/g, "").replace(/\s+/g, " ").trim();
         const romanUrdu = toRomanUrdu(cleanText);
 
         const utterance = new SpeechSynthesisUtterance(romanUrdu);
@@ -441,11 +471,8 @@ export default function QuranReader() {
         utterance.rate = 0.8;
         utterance.pitch = 1;
         utterance.volume = 1;
-
-        // Step 3: Next ayah after translation ends
         utterance.onend = () => { index++; playNext(); };
         utterance.onerror = () => { index++; playNext(); };
-
         window.speechSynthesis.speak(utterance);
       };
 
@@ -487,8 +514,15 @@ export default function QuranReader() {
           .surah-row { transition: all 0.2s ease; }
           @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
           .fade-in { animation: fadeIn 0.4s ease forwards; }
+          @keyframes micPulse {
+            0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.4); }
+            50% { box-shadow: 0 0 0 6px rgba(201,168,76,0); }
+          }
+          .mic-listening { animation: micPulse 1s ease-in-out infinite; }
+          .search-input:focus { border-color: rgba(201,168,76,0.45) !important; }
         `}</style>
 
+        {/* ─── STICKY HEADER ─── */}
         <div style={{
           background: "linear-gradient(180deg, #111820 0%, #0c1118 100%)",
           borderBottom: "1px solid rgba(201,168,76,0.15)",
@@ -504,8 +538,11 @@ export default function QuranReader() {
             <h1 style={{ fontSize: "26px", fontWeight: "400", margin: "0 0 20px", letterSpacing: "1px" }}>
               Al-Quran Al-Kareem
             </h1>
+
+            {/* ─── SEARCH BAR with Voice ─── */}
             <div style={{ position: "relative" }}>
               <input
+                className="search-input"
                 value={searchQuery}
                 onChange={e => setSearchQuery(e.target.value)}
                 placeholder="Surah dhundein... (naam, number, meaning)"
@@ -514,13 +551,67 @@ export default function QuranReader() {
                   background: "rgba(255,255,255,0.04)",
                   border: "1px solid rgba(201,168,76,0.2)",
                   borderRadius: "12px",
-                  padding: "12px 16px 12px 42px",
+                  padding: "12px 48px 12px 42px",
                   color: "#e2d9c8", fontSize: "14px",
                   outline: "none",
+                  transition: "border-color 0.2s",
                 }}
               />
-              <span style={{ position: "absolute", left: "14px", top: "50%", transform: "translateY(-50%)", fontSize: "16px", opacity: 0.5 }}>🔍</span>
+
+              {/* FiSearch icon — left */}
+              <span style={{
+                position: "absolute", left: "14px", top: "50%",
+                transform: "translateY(-50%)",
+                display: "flex", alignItems: "center",
+                pointerEvents: "none",
+                opacity: searchQuery ? 0.8 : 0.4,
+                transition: "opacity 0.2s",
+              }}>
+                <FiSearch size={16} color="#C9A84C" />
+              </span>
+
+              {/* Mic button — right */}
+              <button
+                onClick={startVoiceSearch}
+                title={isListening ? "Sunna band karo" : "Voice se dhundein"}
+                className={isListening ? "mic-listening" : ""}
+                style={{
+                  position: "absolute", right: "10px", top: "50%",
+                  transform: "translateY(-50%)",
+                  background: isListening
+                    ? "rgba(201,168,76,0.15)"
+                    : "none",
+                  border: isListening
+                    ? "1px solid rgba(201,168,76,0.4)"
+                    : "1px solid transparent",
+                  borderRadius: "8px",
+                  cursor: "pointer",
+                  display: "flex", alignItems: "center", justifyContent: "center",
+                  width: "30px", height: "30px",
+                  color: isListening ? "#C9A84C" : "#5a5040",
+                  transition: "all 0.2s",
+                }}
+              >
+                {isListening
+                  ? <FiMicOff size={15} />
+                  : <FiMic size={15} />
+                }
+              </button>
             </div>
+
+            {/* Listening indicator */}
+            {isListening && (
+              <div style={{
+                marginTop: "8px",
+                fontSize: "12px",
+                color: "#C9A84C",
+                opacity: 0.8,
+                display: "flex", alignItems: "center", justifyContent: "center", gap: "6px",
+              }}>
+                <span style={{ display: "inline-block", width: "6px", height: "6px", borderRadius: "50%", background: "#C9A84C", animation: "micPulse 0.8s infinite" }} />
+                Bol rahe hain... (Urdu/English)
+              </div>
+            )}
           </div>
         </div>
 
@@ -630,13 +721,11 @@ export default function QuranReader() {
         backdropFilter: "blur(20px)",
         padding: "0 16px",
       }}>
-        {/* Top row */}
         <div style={{
           maxWidth: "680px", margin: "0 auto",
           display: "flex", alignItems: "center",
           height: "56px", gap: "8px",
         }}>
-          {/* Back */}
           <button
             className="hdr-btn"
             onClick={() => { setView("list"); stopAllAudio(); }}
@@ -649,7 +738,6 @@ export default function QuranReader() {
             ←
           </button>
 
-          {/* Surah info */}
           <div style={{ flex: 1 }}>
             <div style={{ fontSize: "15px", fontWeight: "500" }}>{selectedSurah?.name}</div>
             <div style={{ fontSize: "11px", color: "#5a5040" }}>
@@ -657,7 +745,6 @@ export default function QuranReader() {
             </div>
           </div>
 
-          {/* Arabic title */}
           <div style={{
             fontFamily: "'Amiri', serif", fontSize: "20px",
             color: "#C9A84C", opacity: 0.7, flexShrink: 0,
@@ -665,58 +752,44 @@ export default function QuranReader() {
             {selectedSurah?.arabic}
           </div>
 
-          {/* ── Play Surah (Arabic only) ── */}
           <button
             className="hdr-btn"
             onClick={playAllSurah}
             title="Puri Surah Arabic play karo"
             style={{
-              background: playingMode === "surah"
-                ? "rgba(201,168,76,0.2)"
-                : "rgba(255,255,255,0.05)",
+              background: playingMode === "surah" ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
               border: `1px solid ${playingMode === "surah" ? "#C9A84C" : "rgba(201,168,76,0.3)"}`,
-              color: "#C9A84C",
-              fontSize: "12px",
-              padding: "6px 10px",
-              borderRadius: "8px",
-              flexShrink: 0,
+              color: "#C9A84C", fontSize: "12px",
+              padding: "6px 10px", borderRadius: "8px", flexShrink: 0,
               display: "flex", alignItems: "center", gap: "4px",
             }}
           >
             {playingMode === "surah" ? "⏸" : "▶"} عربي
           </button>
 
-          {/* ── Play Surah + Translation ── */}
           <button
             className="hdr-btn"
             onClick={playAllWithTranslation}
             title="Puri Surah Arabic + Tarjuma play karo"
             style={{
-              background: playingMode === "surahBoth"
-                ? "rgba(142,68,173,0.2)"
-                : "rgba(255,255,255,0.05)",
+              background: playingMode === "surahBoth" ? "rgba(142,68,173,0.2)" : "rgba(255,255,255,0.05)",
               border: `1px solid ${playingMode === "surahBoth" ? "#8E44AD" : "rgba(142,68,173,0.4)"}`,
-              color: "#8E44AD",
-              fontSize: "12px",
-              padding: "6px 10px",
-              borderRadius: "8px",
-              flexShrink: 0,
+              color: "#8E44AD", fontSize: "12px",
+              padding: "6px 10px", borderRadius: "8px", flexShrink: 0,
               display: "flex", alignItems: "center", gap: "4px",
             }}
           >
             {playingMode === "surahBoth" ? "⏸" : "▶"} + ترجمہ
           </button>
 
-          {/* Settings */}
           <button
             className="hdr-btn"
             onClick={() => setSettingsOpen(!settingsOpen)}
             style={{
               background: settingsOpen ? "rgba(201,168,76,0.15)" : "none",
               border: "1px solid rgba(201,168,76,0.2)",
-              color: "#C9A84C",
-              fontSize: "14px", padding: "6px 10px",
-              borderRadius: "8px", flexShrink: 0,
+              color: "#C9A84C", fontSize: "14px",
+              padding: "6px 10px", borderRadius: "8px", flexShrink: 0,
             }}
           >
             ⚙️
@@ -731,8 +804,6 @@ export default function QuranReader() {
             maxWidth: "680px", margin: "0 auto",
           }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px", fontSize: "12px" }}>
-
-              {/* Qari */}
               <div>
                 <div style={{ color: "#5a5040", marginBottom: "6px" }}>Qari</div>
                 <select
@@ -746,15 +817,13 @@ export default function QuranReader() {
                   style={{
                     width: "100%", background: "#111820",
                     border: "1px solid rgba(201,168,76,0.2)",
-                    color: "#e2d9c8", padding: "8px", borderRadius: "8px",
-                    fontSize: "12px",
+                    color: "#e2d9c8", padding: "8px", borderRadius: "8px", fontSize: "12px",
                   }}
                 >
                   {RECITERS.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
                 </select>
               </div>
 
-              {/* Translation */}
               <div>
                 <div style={{ color: "#5a5040", marginBottom: "6px" }}>Translation</div>
                 <select
@@ -767,15 +836,13 @@ export default function QuranReader() {
                   style={{
                     width: "100%", background: "#111820",
                     border: "1px solid rgba(201,168,76,0.2)",
-                    color: "#e2d9c8", padding: "8px", borderRadius: "8px",
-                    fontSize: "12px",
+                    color: "#e2d9c8", padding: "8px", borderRadius: "8px", fontSize: "12px",
                   }}
                 >
                   {TRANSLATIONS.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
                 </select>
               </div>
 
-              {/* Font size */}
               <div>
                 <div style={{ color: "#5a5040", marginBottom: "6px" }}>Arabic Font: {fontSize}px</div>
                 <input
@@ -785,7 +852,6 @@ export default function QuranReader() {
                 />
               </div>
 
-              {/* Translation toggle */}
               <div style={{ display: "flex", alignItems: "center", gap: "10px", paddingTop: "18px" }}>
                 <span style={{ color: "#5a5040" }}>Translation</span>
                 <button
@@ -811,7 +877,7 @@ export default function QuranReader() {
         )}
       </div>
 
-      {/* Bismillah */}
+      {/* Bismillah — only in reader, not splash */}
       {selectedSurah?.number !== 9 && (
         <div style={{
           textAlign: "center", padding: "32px 20px 8px",
@@ -829,8 +895,7 @@ export default function QuranReader() {
           <div style={{
             width: "40px", height: "40px", margin: "0 auto 20px",
             border: "2px solid rgba(201,168,76,0.2)",
-            borderTopColor: "#C9A84C",
-            borderRadius: "50%",
+            borderTopColor: "#C9A84C", borderRadius: "50%",
             animation: "spin 0.8s linear infinite",
           }} />
           <p style={{ color: "#5a5040", fontSize: "14px" }}>Loading {selectedSurah?.name}...</p>
@@ -853,12 +918,10 @@ export default function QuranReader() {
                 position: "relative",
               }}
             >
-              {/* Ayah header */}
               <div style={{
                 display: "flex", justifyContent: "space-between",
                 alignItems: "center", marginBottom: "16px",
               }}>
-                {/* Ayah number badge */}
                 <div style={{
                   width: "34px", height: "34px",
                   background: isPlaying ? "rgba(201,168,76,0.2)" : "rgba(201,168,76,0.08)",
@@ -870,7 +933,6 @@ export default function QuranReader() {
                   {isPlaying ? "♪" : ayah.number}
                 </div>
 
-                {/* Per-ayah action buttons */}
                 <div className="ayah-actions" style={{
                   display: "flex", gap: "6px", opacity: 0.4,
                   transition: "opacity 0.2s", alignItems: "center",
@@ -879,8 +941,7 @@ export default function QuranReader() {
                     onClick={() => handlePlay(ayah, "arabic")}
                     className={`play-btn ${isPlaying && playingMode === "arabic" ? "active" : ""}`}
                     style={{
-                      background: isPlaying && playingMode === "arabic"
-                        ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
+                      background: isPlaying && playingMode === "arabic" ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(201,168,76,0.2)",
                       borderRadius: "8px", padding: "6px 10px",
                       color: "#C9A84C", cursor: "pointer", fontSize: "12px",
@@ -894,8 +955,7 @@ export default function QuranReader() {
                     onClick={() => handlePlay(ayah, "translation")}
                     className={`play-btn ${isPlaying && playingMode === "translation" ? "active" : ""}`}
                     style={{
-                      background: isPlaying && playingMode === "translation"
-                        ? "rgba(39,174,96,0.2)" : "rgba(255,255,255,0.05)",
+                      background: isPlaying && playingMode === "translation" ? "rgba(39,174,96,0.2)" : "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(39,174,96,0.3)",
                       borderRadius: "8px", padding: "6px 10px",
                       color: "#27AE60", cursor: "pointer", fontSize: "12px",
@@ -909,8 +969,7 @@ export default function QuranReader() {
                     onClick={() => handlePlay(ayah, "both")}
                     className={`play-btn ${isPlaying && playingMode === "both" ? "active" : ""}`}
                     style={{
-                      background: isPlaying && playingMode === "both"
-                        ? "rgba(142,68,173,0.2)" : "rgba(255,255,255,0.05)",
+                      background: isPlaying && playingMode === "both" ? "rgba(142,68,173,0.2)" : "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(142,68,173,0.3)",
                       borderRadius: "8px", padding: "6px 10px",
                       color: "#8E44AD", cursor: "pointer", fontSize: "12px",
@@ -923,8 +982,7 @@ export default function QuranReader() {
                   <button
                     onClick={() => toggleBookmark(ayah.number)}
                     style={{
-                      background: isBookmarked(ayah.number)
-                        ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
+                      background: isBookmarked(ayah.number) ? "rgba(201,168,76,0.2)" : "rgba(255,255,255,0.05)",
                       border: "1px solid rgba(201,168,76,0.2)",
                       borderRadius: "8px", padding: "6px 10px",
                       color: isBookmarked(ayah.number) ? "#C9A84C" : "#5a5040",

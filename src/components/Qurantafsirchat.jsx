@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from "react";
+import { FiMic, FiMicOff } from "react-icons/fi";
 
 const SUGGESTED_QUESTIONS = [
   "Surah Al-Fatihah ka khulasa batao",
@@ -34,13 +35,71 @@ export default function Qurantafsirchat() {
   ]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
+  const [isListening, setIsListening] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(true);
   const messagesEndRef = useRef(null);
   const inputRef = useRef(null);
+  const recognitionRef = useRef(null);
+  const textareaRef = useRef(null);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
   }, [messages]);
+
+  // Auto-resize textarea when input changes (e.g. after voice fill)
+  useEffect(() => {
+    if (textareaRef.current) {
+      textareaRef.current.style.height = "auto";
+      textareaRef.current.style.height =
+        Math.min(textareaRef.current.scrollHeight, 120) + "px";
+    }
+  }, [input]);
+
+  // ─── Voice Input ───
+  const toggleVoice = () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert("Aapka browser voice input support nahi karta");
+      return;
+    }
+
+    // Already listening → stop
+    if (isListening && recognitionRef.current) {
+      recognitionRef.current.stop();
+      setIsListening(false);
+      return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = "ur-PK";
+    recognition.interimResults = true;   // Live transcript dikhao
+    recognition.maxAlternatives = 1;
+    recognition.continuous = false;
+    recognitionRef.current = recognition;
+
+    setIsListening(true);
+
+    recognition.onresult = (e) => {
+      let transcript = "";
+      for (let i = e.resultIndex; i < e.results.length; i++) {
+        transcript += e.results[i][0].transcript;
+      }
+      setInput(transcript);
+    };
+
+    recognition.onerror = (e) => {
+      console.error("Voice error:", e.error);
+      setIsListening(false);
+    };
+
+    recognition.onend = () => {
+      setIsListening(false);
+      // Focus textarea after voice
+      setTimeout(() => inputRef.current?.focus(), 100);
+    };
+
+    recognition.start();
+  };
 
   const sendMessage = async (text) => {
     const messageText = text || input.trim();
@@ -53,7 +112,6 @@ export default function Qurantafsirchat() {
     const newMessages = [...messages, userMsg];
     setMessages(newMessages);
 
-    // Build conversation history (skip first greeting)
     const apiMessages = newMessages
       .filter((_, i) => i > 0)
       .map(m => ({
@@ -72,9 +130,7 @@ export default function Qurantafsirchat() {
             "x-goog-api-key": import.meta.env.VITE_GEMINI_API_KEY,
           },
           body: JSON.stringify({
-            systemInstruction: {
-              parts: [{ text: SYSTEM_PROMPT }],
-            },
+            systemInstruction: { parts: [{ text: SYSTEM_PROMPT }] },
             contents: apiMessages,
           }),
         }
@@ -83,7 +139,6 @@ export default function Qurantafsirchat() {
       if (!response.ok) {
         const errData = await response.json().catch(() => ({}));
         const errMsg = errData.error?.message || "";
-        
         if (response.status === 429 || errMsg.includes("quota") || errMsg.includes("429")) {
           throw new Error("QUOTA_EXCEEDED");
         }
@@ -97,11 +152,7 @@ export default function Qurantafsirchat() {
       const errorMsg = e.message === "QUOTA_EXCEEDED" || e.message?.includes("429") || e.message?.includes("quota")
         ? "⚠️ Aapka free quota khatam ho gaya hai.\n\nKripya thodi der (1-2 minute) wait karein aur dobara try karein. Ya phir nayi API key bana lein Google AI Studio se.\n\nJazakAllah Khair! 🙏"
         : "Kuch technical masla aa gaya. Dobara koshish karein.";
-      
-      setMessages(prev => [...prev, {
-        role: "assistant",
-        content: errorMsg,
-      }]);
+      setMessages(prev => [...prev, { role: "assistant", content: errorMsg }]);
     } finally {
       setLoading(false);
       setTimeout(() => inputRef.current?.focus(), 100);
@@ -141,9 +192,16 @@ export default function Qurantafsirchat() {
         ::-webkit-scrollbar-thumb { background: #1e2830; border-radius: 4px; }
         @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
         @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.2} }
+        @keyframes micPulse {
+          0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.5); }
+          50% { box-shadow: 0 0 0 7px rgba(201,168,76,0); }
+        }
         .msg-in { animation: fadeIn 0.3s ease forwards; }
         .suggestion-btn:hover { background: rgba(201,168,76,0.12) !important; border-color: rgba(201,168,76,0.4) !important; color: #C9A84C !important; }
         .suggestion-btn { transition: all 0.2s; }
+        .mic-btn { transition: all 0.2s; }
+        .mic-btn:hover { opacity: 0.85; }
+        .mic-listening { animation: micPulse 1s ease-in-out infinite !important; }
       `}</style>
 
       {/* Header */}
@@ -249,36 +307,64 @@ export default function Qurantafsirchat() {
         <div ref={messagesEndRef} />
       </div>
 
-      {/* Input */}
+      {/* Input Area */}
       <div style={{
         background: "rgba(8,14,20,0.97)", borderTop: "1px solid rgba(201,168,76,0.1)",
         padding: "16px 20px", backdropFilter: "blur(20px)", flexShrink: 0,
       }}>
-        <div style={{ maxWidth: "700px", margin: "0 auto", display: "flex", gap: "10px", alignItems: "flex-end" }}>
+        <div style={{ maxWidth: "700px", margin: "0 auto", display: "flex", gap: "8px", alignItems: "flex-end" }}>
+
+          {/* Mic Button */}
+          <button
+            onClick={toggleVoice}
+            className={`mic-btn ${isListening ? "mic-listening" : ""}`}
+            title={isListening ? "Sunna band karo" : "Bol ke sawaal karein (Urdu/Hindi)"}
+            style={{
+              width: "48px", height: "48px", flexShrink: 0,
+              background: isListening
+                ? "rgba(201,168,76,0.18)"
+                : "rgba(255,255,255,0.05)",
+              border: `1px solid ${isListening ? "rgba(201,168,76,0.5)" : "rgba(201,168,76,0.15)"}`,
+              borderRadius: "14px",
+              display: "flex", alignItems: "center", justifyContent: "center",
+              cursor: "pointer",
+              color: isListening ? "#C9A84C" : "#5a5040",
+            }}
+          >
+            {isListening ? <FiMicOff size={18} /> : <FiMic size={18} />}
+          </button>
+
+          {/* Textarea */}
           <textarea
-            ref={inputRef}
+            ref={(el) => { inputRef.current = el; textareaRef.current = el; }}
             value={input}
             onChange={e => setInput(e.target.value)}
             onKeyDown={e => { if (e.key === "Enter" && !e.shiftKey) { e.preventDefault(); sendMessage(); } }}
-            placeholder="Koi bhi sawaal karein Quran ke baare mein..."
+            placeholder={isListening ? "🎙️ Sun raha hoon..." : "Koi bhi sawaal karein Quran ke baare mein..."}
             rows={1}
             style={{
               flex: 1, boxSizing: "border-box",
-              background: "rgba(255,255,255,0.04)", border: "1px solid rgba(201,168,76,0.2)",
+              background: isListening ? "rgba(201,168,76,0.05)" : "rgba(255,255,255,0.04)",
+              border: `1px solid ${isListening ? "rgba(201,168,76,0.35)" : "rgba(201,168,76,0.2)"}`,
               borderRadius: "16px", padding: "14px 16px", color: "#e2d9c8",
               fontSize: "14px", outline: "none", resize: "none",
-              lineHeight: "1.6", maxHeight: "120px", overflowY: "auto", fontFamily: "inherit",
+              lineHeight: "1.6", maxHeight: "120px", overflowY: "auto",
+              fontFamily: "inherit", transition: "border-color 0.2s, background 0.2s",
             }}
             onInput={e => {
               e.target.style.height = "auto";
               e.target.style.height = Math.min(e.target.scrollHeight, 120) + "px";
             }}
           />
+
+          {/* Send Button */}
           <button
             onClick={() => sendMessage()}
             disabled={!input.trim() || loading}
             style={{
-              background: input.trim() && !loading ? "linear-gradient(135deg, #C9A84C, #a8863c)" : "rgba(255,255,255,0.05)",
+              background: input.trim() && !loading
+                ? "linear-gradient(135deg, #C9A84C, #a8863c)"
+                : "rgba(255,255,255,0.05)",
               border: "none", borderRadius: "14px", width: "48px", height: "48px",
               display: "flex", alignItems: "center", justifyContent: "center",
               cursor: input.trim() && !loading ? "pointer" : "not-allowed",
@@ -288,8 +374,17 @@ export default function Qurantafsirchat() {
             {loading ? "⟳" : "↑"}
           </button>
         </div>
-        <div style={{ textAlign: "center", marginTop: "10px", fontSize: "10px", color: "#2a2520", letterSpacing: "0.5px" }}>
-          Enter dabao ya button press karein • Shift+Enter naya line
+
+        {/* Status row */}
+        <div style={{ textAlign: "center", marginTop: "10px", fontSize: "10px", letterSpacing: "0.5px" }}>
+          {isListening
+            ? <span style={{ color: "#C9A84C", opacity: 0.9 }}>
+                🎙️ Bol rahe hain... (Urdu / Hindi) — dobara click karein band karne ke liye
+              </span>
+            : <span style={{ color: "#2a2520" }}>
+                Enter dabao ya button press karein • Shift+Enter naya line • 🎙️ voice ke liye mic dabaein
+              </span>
+          }
         </div>
       </div>
     </div>

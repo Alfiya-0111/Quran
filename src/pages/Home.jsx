@@ -1,5 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import IslamicAd from '../components/IslamicAd';
+import { FiBookOpen, FiHeart, FiType, FiMessageSquare, FiMoon } from 'react-icons/fi';
+import { HiSparkles } from 'react-icons/hi2';
+import { IoHandLeftOutline } from 'react-icons/io5';
+import { RiUserHeartLine } from 'react-icons/ri';
 
 const DAILY_AYAHS = [
   { arabic: "فَإِنَّ مَعَ الْعُسْرِ يُسْرًا", translation: "Toh beshak mushkil ke saath aasaani hai.", surah: "Al-Inshirah", ayah: "94:5" },
@@ -16,6 +20,41 @@ const QUICK_SURAHS = [
   { number: 112, name: "Al-Ikhlas" },
   { number: 1,   name: "Al-Fatihah" },
   { number: 18,  name: "Al-Kahf" },
+]
+
+const FEATURE_CARDS = [
+  {
+    Icon: FiBookOpen,
+    title: 'Quran Reader',
+    sub: 'Padho, suno, bookmark',
+    badge: 'Audio • Bookmark',
+    color: '#2C7873',
+    path: '/reader',
+  },
+  {
+    Icon: FiHeart,
+    title: 'Dil Ka Haal',
+    sub: 'Apni kaifiyat batao',
+    badge: '8 Moods • AI',
+    color: '#6B7FD7',
+    path: '/mood',
+  },
+  {
+    Icon: FiType,
+    title: 'Word-by-Word',
+    sub: 'Arabic seekho',
+    badge: 'Tap • Save • Quiz',
+    color: '#8E44AD',
+    path: '/vocab',
+  },
+  {
+    Icon: FiMessageSquare,
+    title: 'Tafsir',
+    sub: 'Kuch bhi poochho',
+    badge: 'AI Scholar',
+    color: '#C0392B',
+    path: '/tafsir',
+  },
 ]
 
 export default function Home() {
@@ -35,28 +74,26 @@ export default function Home() {
 
       {/* Greeting */}
       <div style={{ marginBottom: '28px', animation: 'fadeUp 0.4s ease' }}>
-        <div style={{ fontSize: '12px', color: '#6a5f52', letterSpacing: '2px', marginBottom: '4px' }}>
-          {greeting} 🌙
+        <div style={{
+          fontSize: '12px', color: '#6a5f52', letterSpacing: '2px',
+          marginBottom: '4px', display: 'flex', alignItems: 'center', gap: '6px',
+        }}>
+          <FiMoon size={13} color="#C9A84C" style={{ opacity: 0.7 }} />
+          {greeting}
         </div>
-    <div style={{
-  color: '#C9A84C',
-  fontFamily: "'Amiri', serif",
-  opacity: 0.9,
-  lineHeight: '1.2',
-
-  // 🔥 Responsive magic
-  fontSize: 'clamp(28px, 8vw, 48px)',  // min 28px, max 48px
-  letterSpacing: 'clamp(2px, 1vw, 6px)',
-
-  // Centering + elegance
-  textAlign: 'center',
-  marginTop: '6px',
-
-  // Soft glow effect
-  textShadow: '0 0 25px rgba(201,168,76,0.25)',
-}}>
-  ﷽
-</div>
+        <div style={{
+          color: '#C9A84C',
+          fontFamily: "'Amiri', serif",
+          opacity: 0.9,
+          lineHeight: '1.2',
+          fontSize: 'clamp(28px, 8vw, 48px)',
+          letterSpacing: 'clamp(2px, 1vw, 6px)',
+          textAlign: 'center',
+          marginTop: '6px',
+          textShadow: '0 0 25px rgba(201,168,76,0.25)',
+        }}>
+          ﷽
+        </div>
         <div style={{
           width: '48px', height: '1px',
           background: 'linear-gradient(90deg, #C9A84C, transparent)',
@@ -72,8 +109,12 @@ export default function Home() {
         marginBottom: '20px',
         animation: 'fadeUp 0.4s ease 0.1s both',
       }}>
-        <div style={{ fontSize: '10px', color: '#6a5f52', letterSpacing: '2px', marginBottom: '14px' }}>
-          ✨ AAJ KI AYAH
+        <div style={{
+          fontSize: '10px', color: '#6a5f52', letterSpacing: '2px', marginBottom: '14px',
+          display: 'flex', alignItems: 'center', gap: '6px',
+        }}>
+          <HiSparkles size={12} color="#C9A84C" style={{ opacity: 0.7 }} />
+          AAJ KI AYAH
         </div>
         <div style={{
           fontFamily: "'Amiri', serif", fontSize: '26px',
@@ -92,12 +133,7 @@ export default function Home() {
 
       {/* Feature Cards */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px', marginBottom: '20px' }}>
-        {[
-          { icon: '📖', title: 'Quran Reader',  sub: 'Padho, suno, bookmark', badge: 'Audio • Bookmark', color: '#2C7873', path: '/reader' },
-          { icon: '💙', title: 'Dil Ka Haal',   sub: 'Apni kaifiyat batao',   badge: '8 Moods • AI',    color: '#6B7FD7', path: '/mood'   },
-          { icon: '🔤', title: 'Word-by-Word',  sub: 'Arabic seekho',          badge: 'Tap • Save • Quiz', color: '#8E44AD', path: '/vocab'  },
-          { icon: '💬', title: 'Tafsir',         sub: 'Kuch bhi poochho',      badge: 'AI Scholar',     color: '#C0392B', path: '/tafsir' },
-        ].map((f, i) => (
+        {FEATURE_CARDS.map((f, i) => (
           <button
             key={f.path}
             onClick={() => navigate(f.path)}
@@ -105,7 +141,7 @@ export default function Home() {
               background: 'rgba(255,255,255,0.03)',
               border: '1px solid rgba(255,255,255,0.07)',
               borderRadius: '18px', padding: '18px 14px',
-              textAlign: 'left', transition: 'all 0.25s',
+              textAlign: 'left', transition: 'all 0.25s', cursor: 'pointer',
               animation: `fadeUp 0.4s ease ${0.15 + i * 0.07}s both`,
             }}
             onMouseEnter={e => {
@@ -117,7 +153,17 @@ export default function Home() {
               e.currentTarget.style.background = 'rgba(255,255,255,0.03)'
             }}
           >
-            <div style={{ fontSize: '26px', marginBottom: '10px' }}>{f.icon}</div>
+            {/* Icon */}
+            <div style={{
+              width: '38px', height: '38px',
+              background: `${f.color}18`,
+              border: `1px solid ${f.color}40`,
+              borderRadius: '12px',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              marginBottom: '12px',
+            }}>
+              <f.Icon size={18} color={f.color} />
+            </div>
             <div style={{ fontSize: '14px', color: '#e2d9c8', marginBottom: '3px' }}>{f.title}</div>
             <div style={{ fontSize: '11px', color: '#6a5f52', marginBottom: '8px' }}>{f.sub}</div>
             <div style={{
@@ -146,7 +192,7 @@ export default function Home() {
                 background: 'rgba(255,255,255,0.03)',
                 border: '1px solid rgba(255,255,255,0.07)',
                 borderRadius: '20px', padding: '7px 14px',
-                color: '#6a5f52', fontSize: '12px', transition: 'all 0.2s',
+                color: '#6a5f52', fontSize: '12px', transition: 'all 0.2s', cursor: 'pointer',
               }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = '#C9A84C'; e.currentTarget.style.color = '#C9A84C' }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(255,255,255,0.07)'; e.currentTarget.style.color = '#6a5f52' }}
@@ -158,66 +204,49 @@ export default function Home() {
       </div>
 
       {/* Footer */}
-      {/* <div style={{ textAlign: 'center', marginTop: '40px', color: '#2a2520', fontSize: '11px' }}>
-        <div style={{ fontFamily: "'Amiri', serif", fontSize: '16px', color: '#C9A84C', opacity: 0.3, marginBottom: '4px' }}>
-          صدقہ جاریہ
-        </div>
-        Sadqa-e-Jariya • Free Forever • No Ads
-      </div> */}
       <div style={{ textAlign: 'center', marginTop: '60px', paddingBottom: '20px' }}>
-  <div style={{ 
-    width: '40px', 
-    height: '1px', 
-    background: 'linear-gradient(90deg, transparent, #C9A84C, transparent)', 
-    margin: '0 auto 16px' 
-  }} />
-  
-  <p style={{ 
-    color: '#5a5040', 
-    fontSize: '11px', 
-    letterSpacing: '2px',
-    margin: '0 0 4px'
-  }}>
-    ❤️   Developed by 
-  </p>
-  
-  <p style={{ 
-    color: '#C9A84C', 
-    fontSize: '14px', 
-    letterSpacing: '3px',
-    fontWeight: '400',
-    margin: 0,
-    textShadow: '0 0 20px rgba(201,168,76,0.2)'
-  }}>
-     Alfiya • For the sake of Allah
-  </p>
-   <p style={{ 
-    color: '#C9A84C', 
-    fontSize: '14px', 
-    letterSpacing: '3px',
-    fontWeight: '400',
-    margin: 0,
-    textShadow: '0 0 20px rgba(201,168,76,0.2)'
-  }}>
-    If you benefited, make dua for my Abbu 🤲
-  </p>
-   <p style={{color: '#5a5040', fontSize: '11px', letterSpacing: '2px'}}>
-    "InshaAllah, beneficial for the Ummah"
-  </p>
-  <p style={{ 
-    color: '#3a3028', 
-    fontSize: '10px', 
-    marginTop: '8px',
-    letterSpacing: '1px'
-  }}>
-    Sadqa-e-Jariya • Free Forever
-  </p>
-</div>
+        <div style={{
+          width: '40px', height: '1px',
+          background: 'linear-gradient(90deg, transparent, #C9A84C, transparent)',
+          margin: '0 auto 16px',
+        }} />
+
+        <p style={{ color: '#5a5040', fontSize: '11px', letterSpacing: '2px', margin: '0 0 4px' }}>
+          Developed by
+        </p>
+
+        <p style={{
+          color: '#C9A84C', fontSize: '14px', letterSpacing: '3px',
+          fontWeight: '400', margin: 0,
+          textShadow: '0 0 20px rgba(201,168,76,0.2)',
+        }}>
+          Alfiya • For the sake of Allah
+        </p>
+
+        {/* Dua line with hand icon */}
+        <p style={{
+          color: '#C9A84C', fontSize: '13px', letterSpacing: '2px',
+          fontWeight: '400', margin: '6px 0 0',
+          textShadow: '0 0 20px rgba(201,168,76,0.2)',
+          display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px',
+        }}>
+          <IoHandLeftOutline size={15} style={{ opacity: 0.8 }} />
+          If you benefited, make dua for my Abbu
+        </p>
+
+        <p style={{ color: '#5a5040', fontSize: '11px', letterSpacing: '2px', margin: '6px 0 0' }}>
+          "InshaAllah, beneficial for the Ummah"
+        </p>
+
+        <p style={{ color: '#3a3028', fontSize: '10px', marginTop: '8px', letterSpacing: '1px' }}>
+          Sadqa-e-Jariya • Free Forever
+        </p>
+      </div>
     </div>
+
     <div style={{ marginTop: '40px' }}>
-  {/* <IslamicAd />
-  <IslamicAd /> */}
-</div>
- </>
+      {/* <IslamicAd /> <IslamicAd /> */}
+    </div>
+   </>
   )
 }
