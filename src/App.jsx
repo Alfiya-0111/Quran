@@ -26,6 +26,7 @@ import Vocabulary from "./pages/Vocabulary";
 import TafsirChat from "./pages/TafsirChat";
 import Duas from './pages/Duas'
 import FaimilyRead from "./pages/FaimilyRead";
+import Prayer from './pages/Prayer'
 
 import "./App.css";
 
@@ -177,6 +178,7 @@ function BottomNav() {
       label: "Mood",
     },
     { path: '/duas', icon: "🤲", label: 'Duas' },
+    { path: '/prayer', icon: '🕐', label: 'Prayer' },
     { path:"/family", icon:<BsPeople/>, label:"Faimly"},
     {
       path: "/vocab",
@@ -312,6 +314,7 @@ function App() {
             }
           />
 <Route path="/duas" element={<Layout><Duas /></Layout>} />
+<Route path="/prayer" element={<Layout><Prayer /></Layout>} />
 <Route
   path="/family"
   element={
