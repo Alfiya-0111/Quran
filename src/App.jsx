@@ -7,13 +7,12 @@ import {
   useLocation,
 } from "react-router-dom";
 
-// import { FaPrayingHands } from "react-icons/fa";
 import { MdOutlineWbSunny } from "react-icons/md";
 import {
   FaMosque,
   FaBookOpen,
   FaHeart,
- 
+  FaPrayingHands,
   FaLanguage,
   FaComments,
 } from "react-icons/fa";
@@ -29,6 +28,8 @@ import Duas from './pages/Duas'
 import FaimilyRead from "./pages/FaimilyRead";
 import Prayer from './pages/Prayer'
 import Cards from './pages/Cards'
+// import Hidayah from "./pages/Hidayah";
+import CartoonStories from "./pages/CartoonStories";
 
 import "./App.css";
 
@@ -179,10 +180,32 @@ function BottomNav() {
       icon: <FaHeart />,
       label: "Mood",
     },
-    { path: '/duas', icon: "🤲", label: 'Duas' },
-    { path: '/prayer', icon: '🕐', label: 'Prayer' },
-    {path: "/cards" , icon: <TbPlayCard2/>, label: "Card"},
-    { path:"/family", icon:<BsPeople/>, label:"Faimly"},
+   
+    {
+      path: "/cartoons",
+      icon: <TbPlayCard2 />,
+      label: "Stories",
+    },
+    { 
+      path: '/duas', 
+      icon: <FaPrayingHands />, 
+      label: 'Duas' 
+    },
+    { 
+      path: '/prayer', 
+      icon: <MdOutlineWbSunny />, 
+      label: 'Prayer' 
+    },
+    {
+      path: "/cards",
+      icon: <TbPlayCard2 />,
+      label: "Cards",
+    },
+    {
+      path: "/family",
+      icon: <BsPeople />,
+      label: "Family",
+    },
     {
       path: "/vocab",
       icon: <FaLanguage />,
@@ -208,7 +231,7 @@ function BottomNav() {
         backdropFilter: "blur(20px)",
         display: "flex",
         padding: "8px 0 12px",
-        overflow:"auto"
+        overflow: "auto",
       }}
     >
       {tabs.map((tab) => {
@@ -231,6 +254,7 @@ function BottomNav() {
               color: isActive ? "#C9A84C" : "#3a3028",
               fontSize: "10px",
               letterSpacing: "0.5px",
+              minWidth: "60px",
             }}
           >
             <span style={{ fontSize: "19px" }}>{tab.icon}</span>
@@ -317,17 +341,31 @@ function App() {
               </Layout>
             }
           />
-<Route path="/duas" element={<Layout><Duas /></Layout>} />
-<Route path="/prayer" element={<Layout><Prayer /></Layout>} />
-<Route path="/cards" element={<Layout><Cards /></Layout>} />
-<Route
-  path="/family"
-  element={
-    <Layout>
-      <FaimilyRead />
-    </Layout>
-  }
-/>
+
+         
+
+          <Route
+            path="/cartoons"
+            element={
+              <Layout>
+                <CartoonStories />
+              </Layout>
+            }
+          />
+
+          <Route path="/duas" element={<Layout><Duas /></Layout>} />
+          <Route path="/prayer" element={<Layout><Prayer /></Layout>} />
+          <Route path="/cards" element={<Layout><Cards /></Layout>} />
+
+          <Route
+            path="/family"
+            element={
+              <Layout>
+                <FaimilyRead />
+              </Layout>
+            }
+          />
+
           <Route
             path="/vocab"
             element={
