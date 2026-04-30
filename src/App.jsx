@@ -208,6 +208,7 @@ function BottomNav() {
         backdropFilter: "blur(20px)",
         display: "flex",
         padding: "8px 0 12px",
+        overflow:"auto"
       }}
     >
       {tabs.map((tab) => {
