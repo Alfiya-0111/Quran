@@ -18,6 +18,7 @@ import {
   FaComments,
 } from "react-icons/fa";
 import { BsPeople } from 'react-icons/bs';
+import { TbPlayCard2 } from "react-icons/tb";
 
 import Home from "./pages/Home";
 import Reader from "./pages/Reader";
@@ -27,6 +28,7 @@ import TafsirChat from "./pages/TafsirChat";
 import Duas from './pages/Duas'
 import FaimilyRead from "./pages/FaimilyRead";
 import Prayer from './pages/Prayer'
+import Cards from './pages/Cards'
 
 import "./App.css";
 
@@ -179,6 +181,7 @@ function BottomNav() {
     },
     { path: '/duas', icon: "🤲", label: 'Duas' },
     { path: '/prayer', icon: '🕐', label: 'Prayer' },
+    {path: "/cards" , icon: <TbPlayCard2/>, label: "Card"},
     { path:"/family", icon:<BsPeople/>, label:"Faimly"},
     {
       path: "/vocab",
@@ -315,6 +318,7 @@ function App() {
           />
 <Route path="/duas" element={<Layout><Duas /></Layout>} />
 <Route path="/prayer" element={<Layout><Prayer /></Layout>} />
+<Route path="/cards" element={<Layout><Cards /></Layout>} />
 <Route
   path="/family"
   element={
