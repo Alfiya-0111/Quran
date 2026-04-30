@@ -330,7 +330,7 @@ const timeAgo = (timestamp) => {
 // ── Generate unique ID ──
 const uid = () => Math.random().toString(36).substr(2, 9);
 
-export default function AyahCards() {
+export default function Ayahcards() {
   // ── Ayah Card State ──
   const [selectedAyah, setSelectedAyah] = useState(AYAHS[0]);
   const [selectedTheme, setSelectedTheme] = useState(THEMES[0]);

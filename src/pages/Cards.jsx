@@ -1,5 +1,5 @@
 import React from 'react'
-import AyahCards from '../components/AyahCards'
+import Ayahcards from '../components/Ayahcards'
 function Cards() {
   return (
     <div><AyahCards /></div>
