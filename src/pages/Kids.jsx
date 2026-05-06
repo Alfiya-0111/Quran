@@ -1,9 +1,9 @@
 import React from 'react'
-import Kidssection from '../components/Kidssection';
+import KidsSection from '../components/KidsSection';
 
 function Kids() {
   return (
-    <div><Kidssection/></div>
+    <div><KidsSection/></div>
   )
 }
 
