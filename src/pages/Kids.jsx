@@ -1,5 +1,5 @@
 import React from 'react'
-import IslamicCartoonStories from '../components/Kidssection';
+import Kidssection from '../components/Kidssection';
 
 function Kids() {
   return (
