@@ -37,7 +37,7 @@ import CartoonStories from "./pages/CartoonStories";
 import Names from './pages/Names'
 
 import "./App.css";
-import KidsSection from "./components/Kidssection";
+import Kidssection from "./components/Kidssection";
 
 // ───────────────── Splash Screen ─────────────────
 function SplashScreen({ onComplete }) {
@@ -213,9 +213,9 @@ function BottomNav() {
       label: 'Prayer' 
     },
     {
-      path:"/kids",
+      path:'/kids',
       icon:<TbMoodKid />,
-      lable:"Kids",
+      lable:'Kids',
     },
 
     {
@@ -380,7 +380,7 @@ function App() {
 <Route path="/names" element={<Layout><Names /></Layout>} />
 
           <Route path="/prayer" element={<Layout><Prayer /></Layout>} />
-           <Route path="/kids" element={<Layout><KidsSection /></Layout>} />
+           <Route path="/kids" element={<Layout><Kidssection /></Layout>} />
 
           <Route path="/cards" element={<Layout><Cards /></Layout>} />
 
