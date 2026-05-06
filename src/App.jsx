@@ -16,9 +16,12 @@ import {
   FaLanguage,
   FaComments,
 } from "react-icons/fa";
+import { TbMoodKid } from "react-icons/tb";
+
 import { BsPeople } from 'react-icons/bs';
 import { TbPlayCard2 } from "react-icons/tb";
-
+import { GiPrayerBeads } from "react-icons/gi"
+import { PiHandsPrayingFill } from "react-icons/pi"
 import Home from "./pages/Home";
 import Reader from "./pages/Reader";
 import MoodFinder from "./pages/MoodFinder";
@@ -28,10 +31,13 @@ import Duas from './pages/Duas'
 import FaimilyRead from "./pages/FaimilyRead";
 import Prayer from './pages/Prayer'
 import Cards from './pages/Cards'
+import Sadqa from './pages/Sadqa'
 // import Hidayah from "./pages/Hidayah";
 import CartoonStories from "./pages/CartoonStories";
+import Names from './pages/Names'
 
 import "./App.css";
+import KidsSection from "./components/Kidssection";
 
 // ───────────────── Splash Screen ─────────────────
 function SplashScreen({ onComplete }) {
@@ -191,11 +197,27 @@ function BottomNav() {
       icon: <FaPrayingHands />, 
       label: 'Duas' 
     },
+   {
+  path: '/sadqa',
+  icon: <GiPrayerBeads />,
+  label: 'Sadqa'
+},
+{
+  path: '/names',
+  icon: <PiHandsPrayingFill />,
+  label: 'Names'
+},
     { 
       path: '/prayer', 
       icon: <MdOutlineWbSunny />, 
       label: 'Prayer' 
     },
+    {
+      path:"/kids",
+      icon:<TbMoodKid />,
+      lable:"Kids",
+    },
+
     {
       path: "/cards",
       icon: <TbPlayCard2 />,
@@ -354,7 +376,12 @@ function App() {
           />
 
           <Route path="/duas" element={<Layout><Duas /></Layout>} />
+          <Route path="/sadqa" element={<Layout><Sadqa /></Layout>} />
+<Route path="/names" element={<Layout><Names /></Layout>} />
+
           <Route path="/prayer" element={<Layout><Prayer /></Layout>} />
+           <Route path="/kids" element={<Layout><KidsSection /></Layout>} />
+
           <Route path="/cards" element={<Layout><Cards /></Layout>} />
 
           <Route

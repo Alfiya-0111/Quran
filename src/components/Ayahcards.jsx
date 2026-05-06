@@ -583,7 +583,7 @@ export default function Ayahcards() {
         >
           <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
             <FaHandsPraying size={18} color="#C9A84C" />
-            <span style={{ fontSize: "17px" }}>Noor Al-Quran</span>
+            <span style={{ fontSize: "17px" }}>Soul Ayah</span>
           </div>
           <div style={{ display: "flex", gap: "4px" }}>
             {[
@@ -758,7 +758,7 @@ export default function Ayahcards() {
                     letterSpacing: "1px",
                   }}
                 >
-                  NOOR AL-QURAN
+                  Soul Ayah
                 </div>
               </div>
             </div>
