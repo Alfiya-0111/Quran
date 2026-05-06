@@ -35,9 +35,10 @@ import Sadqa from './pages/Sadqa'
 // import Hidayah from "./pages/Hidayah";
 import CartoonStories from "./pages/CartoonStories";
 import Names from './pages/Names'
-import Kids from "./pages/Kids";
+
 
 import "./App.css";
+import Kids from "./pages/Kids";
 
 
 
