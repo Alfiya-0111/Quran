@@ -1,9 +1,9 @@
 import React from 'react'
-import KidsSection from '../components/KidsSection';
+import KidsGraph from '../components/KidsGraph'
 
 function Kids() {
   return (
-    <div><KidsSection/></div>
+    <div><KidsGraph/></div>
   )
 }
 

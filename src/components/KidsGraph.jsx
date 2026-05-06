@@ -319,7 +319,7 @@ function DuasView() {
 }
 
 // ── Main Component ────────────────────────────────────────────────────
-export default function KidsSection() {
+export default function KidsGraph() {
   const [tab, setTab] = useState("huroof");
 
   const tabs = [

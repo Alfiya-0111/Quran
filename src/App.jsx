@@ -37,7 +37,8 @@ import CartoonStories from "./pages/CartoonStories";
 import Names from './pages/Names'
 
 import "./App.css";
-import KidsSection from "./components/KidsSection";
+import Kids from "./pages/Kids";
+
 
 // ───────────────── Splash Screen ─────────────────
 function SplashScreen({ onComplete }) {
@@ -380,7 +381,7 @@ function App() {
 <Route path="/names" element={<Layout><Names /></Layout>} />
 
           <Route path="/prayer" element={<Layout><Prayer /></Layout>} />
-           <Route path="/kids" element={<Layout><KidsSection /></Layout>} />
+           <Route path="/kids" element={<Layout><Kids /></Layout>} />
 
           <Route path="/cards" element={<Layout><Cards /></Layout>} />
 
