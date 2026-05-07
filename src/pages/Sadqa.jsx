@@ -1,9 +1,9 @@
 import React from 'react'
-import SadqaTracker from '../components/SadqaTracker'
+import Sadqatracker from '../components/Sadqatracker'
 
 function Sadqa() {
   return (
-    <div><SadqaTracker /></div>
+    <div><Sadqatracker /></div>
   )
 }
 

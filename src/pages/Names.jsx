@@ -1,8 +1,8 @@
 import React from 'react'
-import AsmaulHusna from '../components/AsmaulHusna'
+import Asmaulhusna from '../components/Asmaulhusna'
 function Names() {
   return (
-    <div><AsmaulHusna /></div>
+    <div><Asmaulhusna /></div>
   )
 }
 

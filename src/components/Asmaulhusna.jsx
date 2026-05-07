@@ -122,7 +122,7 @@ const CATEGORIES = [
   { id: "creator", label: "Khaliq", ids: [12, 13, 14, 59, 60, 61, 96] },
 ];
 
-export default function AsmaulHusna() {
+export default function Asmaulhusna() {
   const [search, setSearch] = useState("");
   const [selected, setSelected] = useState(null);
   const [category, setCategory] = useState("all");

@@ -509,7 +509,7 @@ function PersonDetail({ person, onLogNew }) {
 }
 
 // ─── Main Component ─────────────────────────────────────────────────
-export default function SadqaTracker() {
+export default function Sadqatracker() {
   const [persons, setPersons] = useState(loadPersons);
   const [showAddModal, setShowAddModal] = useState(false);
   const [logTarget, setLogTarget] = useState(null);
