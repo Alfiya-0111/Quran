@@ -1,4 +1,4 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useRef } from "react";
 
 // ── Palette ──────────────────────────────────────────────────────────
 const C = {
@@ -18,76 +18,78 @@ const C = {
   gold: "#C9A84C",
 };
 
-// ── Voice Helper ──────────────────────────────────────────────────────
-function speak(text, lang = "ar-SA", rate = 0.75, pitch = 1.1) {
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-  const utter = new SpeechSynthesisUtterance(text);
-  utter.lang = lang;
-  utter.rate = rate;
-  utter.pitch = pitch;
+// ── Google TTS — Clear Urdu & Arabic voice ────────────────────────────
+const audioRef = { current: null };
 
-  // Try to pick best voice
-  const voices = window.speechSynthesis.getVoices();
-  const match = voices.find(v => v.lang.startsWith(lang.split("-")[0]));
-  if (match) utter.voice = match;
-
-  window.speechSynthesis.speak(utter);
+function stopAudio() {
+  if (audioRef.current) {
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    audioRef.current = null;
+  }
 }
 
-function speakSequence(items) {
-  // items: [{text, lang, rate, pause}]
-  if (!window.speechSynthesis) return;
-  window.speechSynthesis.cancel();
-
+function playSequenceTTS(items, onDone) {
+  stopAudio();
   let idx = 0;
-  const voices = window.speechSynthesis.getVoices();
 
   function playNext() {
-    if (idx >= items.length) return;
+    if (idx >= items.length) { onDone?.(); return; }
     const item = items[idx++];
-    const utter = new SpeechSynthesisUtterance(item.text);
-    utter.lang = item.lang || "ar-SA";
-    utter.rate = item.rate || 0.75;
-    utter.pitch = item.pitch || 1.0;
-    const match = voices.find(v => v.lang.startsWith((item.lang || "ar-SA").split("-")[0]));
-    if (match) utter.voice = match;
-    utter.onend = () => setTimeout(playNext, item.pause || 400);
-    window.speechSynthesis.speak(utter);
+    const url = `https://translate.google.com/translate_tts?ie=UTF-8&q=${encodeURIComponent(item.text)}&tl=${item.lang || "ar"}&client=tw-ob`;
+    const audio = new Audio(url);
+    audioRef.current = audio;
+
+    audio.play().catch(() => {
+      // Fallback: browser TTS
+      if (window.speechSynthesis) {
+        window.speechSynthesis.cancel();
+        const utter = new SpeechSynthesisUtterance(item.text);
+        utter.lang = (item.lang || "ar") === "ar" ? "ar-SA" : "ur-PK";
+        utter.rate = 0.75;
+        utter.onend = () => setTimeout(playNext, item.pause || 500);
+        window.speechSynthesis.speak(utter);
+        return;
+      }
+      setTimeout(playNext, item.pause || 500);
+    });
+
+    audio.onended = () => setTimeout(playNext, item.pause || 500);
   }
+
   playNext();
 }
 
 // ── Data ─────────────────────────────────────────────────────────────
 const ARABIC_LETTERS = [
-  { letter: "ا", name: "Alif", sound: "A", color: C.green, emoji: "🍎" },
-  { letter: "ب", name: "Ba", sound: "B", color: C.blue, emoji: "🦋" },
-  { letter: "ت", name: "Ta", sound: "T", color: C.pink, emoji: "🌷" },
-  { letter: "ث", name: "Tha", sound: "Th", color: C.yellow, emoji: "🌟" },
-  { letter: "ج", name: "Jeem", sound: "J", color: C.orange, emoji: "🌈" },
-  { letter: "ح", name: "Ha", sound: "H", color: C.teal, emoji: "🌺" },
-  { letter: "خ", name: "Kha", sound: "Kh", color: C.purple, emoji: "🦁" },
-  { letter: "د", name: "Dal", sound: "D", color: C.red, emoji: "🐬" },
-  { letter: "ذ", name: "Dhal", sound: "Dh", color: C.green, emoji: "🦊" },
-  { letter: "ر", name: "Ra", sound: "R", color: C.blue, emoji: "🌹" },
-  { letter: "ز", name: "Zay", sound: "Z", color: C.pink, emoji: "⚡" },
-  { letter: "س", name: "Seen", sound: "S", color: C.yellow, emoji: "⭐" },
-  { letter: "ش", name: "Sheen", sound: "Sh", color: C.orange, emoji: "🌞" },
-  { letter: "ص", name: "Sad", sound: "S", color: C.teal, emoji: "🐠" },
-  { letter: "ض", name: "Dad", sound: "D", color: C.purple, emoji: "🦄" },
-  { letter: "ط", name: "Ta", sound: "T", color: C.red, emoji: "🐯" },
-  { letter: "ظ", name: "Dha", sound: "Dh", color: C.green, emoji: "🦋" },
-  { letter: "ع", name: "Ain", sound: "A'", color: C.blue, emoji: "👁️" },
-  { letter: "غ", name: "Ghain", sound: "Gh", color: C.pink, emoji: "🌙" },
-  { letter: "ف", name: "Fa", sound: "F", color: C.yellow, emoji: "🦚" },
-  { letter: "ق", name: "Qaf", sound: "Q", color: C.orange, emoji: "🌴" },
-  { letter: "ك", name: "Kaf", sound: "K", color: C.teal, emoji: "🎋" },
-  { letter: "ل", name: "Lam", sound: "L", color: C.purple, emoji: "🍋" },
-  { letter: "م", name: "Meem", sound: "M", color: C.red, emoji: "🌊" },
-  { letter: "ن", name: "Noon", sound: "N", color: C.green, emoji: "⭐" },
-  { letter: "ه", name: "Ha", sound: "H", color: C.blue, emoji: "🌿" },
-  { letter: "و", name: "Waw", sound: "W", color: C.pink, emoji: "🌸" },
-  { letter: "ي", name: "Ya", sound: "Y", color: C.yellow, emoji: "🌻" },
+  { letter: "ا", name: "Alif",  sound: "A",  color: C.green,  emoji: "🦁", word: "أَسَد",    meaning: "Sher"    },
+  { letter: "ب", name: "Ba",    sound: "B",  color: C.blue,   emoji: "🏠", word: "بَيْت",    meaning: "Ghar"    },
+  { letter: "ت", name: "Ta",    sound: "T",  color: C.pink,   emoji: "🍎", word: "تُفَّاح",  meaning: "Seb"     },
+  { letter: "ث", name: "Tha",   sound: "Th", color: C.yellow, emoji: "🦊", word: "ثَعْلَب",  meaning: "Lomdi"   },
+  { letter: "ج", name: "Jeem",  sound: "J",  color: C.orange, emoji: "🐪", word: "جَمَل",    meaning: "Oont"    },
+  { letter: "ح", name: "Ha",    sound: "H",  color: C.teal,   emoji: "🐴", word: "حِصَان",   meaning: "Ghoda"   },
+  { letter: "خ", name: "Kha",   sound: "Kh", color: C.purple, emoji: "🍞", word: "خُبْز",    meaning: "Roti"    },
+  { letter: "د", name: "Dal",   sound: "D",  color: C.red,    emoji: "🐻", word: "دُبّ",     meaning: "Bhaaloo" },
+  { letter: "ذ", name: "Dhal",  sound: "Dh", color: C.green,  emoji: "🪰", word: "ذُبَاب",   meaning: "Makhi"   },
+  { letter: "ر", name: "Ra",    sound: "R",  color: C.blue,   emoji: "🌹", word: "وَرْدَة",   meaning: "Phool"   },
+  { letter: "ز", name: "Zay",   sound: "Z",  color: C.pink,   emoji: "🌸", word: "زَهْرَة",   meaning: "Gulaab"  },
+  { letter: "س", name: "Seen",  sound: "S",  color: C.yellow, emoji: "🐟", word: "سَمَك",    meaning: "Machli"  },
+  { letter: "ش", name: "Sheen", sound: "Sh", color: C.orange, emoji: "☀️", word: "شَمْس",    meaning: "Suraj"   },
+  { letter: "ص", name: "Sad",   sound: "S",  color: C.teal,   emoji: "🦅", word: "صَقْر",    meaning: "Baaz"    },
+  { letter: "ض", name: "Dad",   sound: "D",  color: C.purple, emoji: "🐸", word: "ضِفْدَع",   meaning: "Mendak"  },
+  { letter: "ط", name: "Ta",    sound: "T",  color: C.red,    emoji: "🦚", word: "طَاوُوس",  meaning: "Mor"     },
+  { letter: "ظ", name: "Dha",   sound: "Dh", color: C.green,  emoji: "🦌", word: "ظَبْي",    meaning: "Hiran"   },
+  { letter: "ع", name: "Ain",   sound: "A'", color: C.blue,   emoji: "🍇", word: "عِنَب",    meaning: "Angoor"  },
+  { letter: "غ", name: "Ghain", sound: "Gh", color: C.pink,   emoji: "🌲", word: "غَابَة",   meaning: "Jungle"  },
+  { letter: "ف", name: "Fa",    sound: "F",  color: C.yellow, emoji: "🦋", word: "فَرَاشَة",  meaning: "Titli"   },
+  { letter: "ق", name: "Qaf",   sound: "Q",  color: C.orange, emoji: "🌙", word: "قَمَر",    meaning: "Chaand"  },
+  { letter: "ك", name: "Kaf",   sound: "K",  color: C.teal,   emoji: "🐶", word: "كَلْب",    meaning: "Kutta"   },
+  { letter: "ل", name: "Lam",   sound: "L",  color: C.purple, emoji: "🌙", word: "لَيْل",    meaning: "Raat"    },
+  { letter: "م", name: "Meem",  sound: "M",  color: C.red,    emoji: "🌊", word: "مَاء",     meaning: "Paani"   },
+  { letter: "ن", name: "Noon",  sound: "N",  color: C.green,  emoji: "⭐", word: "نَجْم",    meaning: "Sitara"  },
+  { letter: "ه", name: "Ha",    sound: "H",  color: C.blue,   emoji: "🌙", word: "هِلَال",   meaning: "Hilaal"  },
+  { letter: "و", name: "Waw",   sound: "W",  color: C.pink,   emoji: "🌹", word: "وَرْد",    meaning: "Phool"   },
+  { letter: "ي", name: "Ya",    sound: "Y",  color: C.yellow, emoji: "✋", word: "يَد",      meaning: "Haath"   },
 ];
 
 const SHORT_SURAHS = [
@@ -95,7 +97,7 @@ const SHORT_SURAHS = [
     num: 114, name: "An-Nas", arabic: "سُورَةُ النَّاس", meaning: "Insaan",
     ayahs: 6, emoji: "👥", color: C.blue,
     verses: [
-      { ar: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ", ur: "Kaho: Mein panaah maangta hoon insaanon ke Rabb ki" },
+      { ar: "قُلْ أَعُوذُ بِرَبِّ النَّاسِ", ur: "Kaho mein panaah maangta hoon insaanon ke Rabb ki" },
       { ar: "مَلِكِ النَّاسِ", ur: "Insaanon ke Badshah ki" },
       { ar: "إِلَٰهِ النَّاسِ", ur: "Insaanon ke Ilaah ki" },
       { ar: "مِن شَرِّ الْوَسْوَاسِ الْخَنَّاسِ", ur: "Waswase dene wale ke shar se" },
@@ -107,7 +109,7 @@ const SHORT_SURAHS = [
     num: 113, name: "Al-Falaq", arabic: "سُورَةُ الْفَلَق", meaning: "Subah ka Noor",
     ayahs: 5, emoji: "🌅", color: C.orange,
     verses: [
-      { ar: "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ", ur: "Kaho: Mein panaah maangta hoon subah ke Rabb ki" },
+      { ar: "قُلْ أَعُوذُ بِرَبِّ الْفَلَقِ", ur: "Kaho mein panaah maangta hoon subah ke Rabb ki" },
       { ar: "مِن شَرِّ مَا خَلَقَ", ur: "Har cheez ke shar se jo usne banayi" },
       { ar: "وَمِن شَرِّ غَاسِقٍ إِذَا وَقَبَ", ur: "Aur andheri raat ke shar se" },
       { ar: "وَمِن شَرِّ النَّفَّاثَاتِ فِي الْعُقَدِ", ur: "Aur gaanth mein phoonk maarne waalon ke shar se" },
@@ -118,7 +120,7 @@ const SHORT_SURAHS = [
     num: 112, name: "Al-Ikhlas", arabic: "سُورَةُ الْإِخْلَاص", meaning: "Ek hai Allah",
     ayahs: 4, emoji: "☝️", color: C.yellow,
     verses: [
-      { ar: "قُلْ هُوَ اللَّهُ أَحَدٌ", ur: "Kaho: Woh Allah ek hai" },
+      { ar: "قُلْ هُوَ اللَّهُ أَحَدٌ", ur: "Kaho woh Allah ek hai" },
       { ar: "اللَّهُ الصَّمَدُ", ur: "Allah bebnyaaz hai" },
       { ar: "لَمْ يَلِدْ وَلَمْ يُولَدْ", ur: "Na uski koi aulaad hai na woh kisi ka bacha" },
       { ar: "وَلَمْ يَكُن لَّهُ كُفُوًا أَحَدٌ", ur: "Aur koi uske barabar nahi" },
@@ -128,8 +130,8 @@ const SHORT_SURAHS = [
     num: 110, name: "An-Nasr", arabic: "سُورَةُ النَّصْر", meaning: "Allah Ki Madad",
     ayahs: 3, emoji: "🏆", color: C.green,
     verses: [
-      { ar: "إِذَا جَاءَ نَصْرُ اللَّهِ وَالْفَتْحُ", ur: "Jab Allah ki madad aa jaaye aur Fatah mil jaaye" },
-      { ar: "وَرَأَيْتَ النَّاسَ يَدْخُلُونَ فِي دِينِ اللَّهِ أَفْوَاجًا", ur: "Aur log Allah ke deen mein jhund ke jhund daaKhil hon" },
+      { ar: "إِذَا جَاءَ نَصْرُ اللَّهِ وَالْفَتْحُ", ur: "Jab Allah ki madad aa jaaye aur fatah mil jaaye" },
+      { ar: "وَرَأَيْتَ النَّاسَ يَدْخُلُونَ فِي دِينِ اللَّهِ أَفْوَاجًا", ur: "Aur log Allah ke deen mein jhund ke jhund dakhil hon" },
       { ar: "فَسَبِّحْ بِحَمْدِ رَبِّكَ وَاسْتَغْفِرْهُ ۚ إِنَّهُ كَانَ تَوَّابًا", ur: "Apne Rabb ki tasbeh karo aur maafi maango" },
     ]
   },
@@ -137,7 +139,7 @@ const SHORT_SURAHS = [
     num: 108, name: "Al-Kawthar", arabic: "سُورَةُ الْكَوْثَر", meaning: "Bahut Zyada Bhalaai",
     ayahs: 3, emoji: "🌊", color: C.teal,
     verses: [
-      { ar: "إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ", ur: "Hum ne tumhe Kawthar di" },
+      { ar: "إِنَّا أَعْطَيْنَاكَ الْكَوْثَرَ", ur: "Hum ne tumhe Kawthar yaani bahut bhalaayi di" },
       { ar: "فَصَلِّ لِرَبِّكَ وَانْحَرْ", ur: "Apne Rabb ke liye namaaz padho aur qurbani karo" },
       { ar: "إِنَّ شَانِئَكَ هُوَ الْأَبْتَرُ", ur: "Beshak tumhara dushman hi bepanaah hai" },
     ]
@@ -146,48 +148,55 @@ const SHORT_SURAHS = [
     num: 111, name: "Al-Masad", arabic: "سُورَةُ الْمَسَد", meaning: "Buri Niyyat Ka Anjam",
     ayahs: 5, emoji: "🔥", color: C.red,
     verses: [
-      { ar: "تَبَّتْ يَدَا أَبِي لَهَبٍ وَتَبَّ", ur: "Abu Lahab ke haath tabah ho gaye" },
-      { ar: "مَا أَغْنَىٰ عَنْهُ مَالُهُ وَمَا كَسَبَ", ur: "Uske maal ne kuch kaam na aaya" },
-      { ar: "سَيَصْلَىٰ نَارًا ذَاتَ لَهَبٍ", ur: "Woh bhaDakti aag mein daakhil hoga" },
-      { ar: "وَامْرَأَتُهُ حَمَّالَةَ الْحَطَبِ", ur: "Aur uski biwi bhi" },
+      { ar: "تَبَّتْ يَدَا أَبِي لَهَبٍ وَتَبَّ", ur: "Abu Lahab ke haath tabah ho gaye aur woh tabah ho gaya" },
+      { ar: "مَا أَغْنَىٰ عَنْهُ مَالُهُ وَمَا كَسَبَ", ur: "Uske maal ne aur jo usne kamaya kuch kaam na aaya" },
+      { ar: "سَيَصْلَىٰ نَارًا ذَاتَ لَهَبٍ", ur: "Woh bhadakti aag mein daakhil hoga" },
+      { ar: "وَامْرَأَتُهُ حَمَّالَةَ الْحَطَبِ", ur: "Aur uski biwi bhi lakdiyan uthane waali" },
       { ar: "فِي جِيدِهَا حَبْلٌ مِّن مَّسَدٍ", ur: "Uske gale mein moondh ki rassi hogi" },
     ]
   },
 ];
 
 const PROPHETS = [
-  { name: "Adam AS", arabic: "آدم", emoji: "🌱", story: "Allah ne Hazrat Adam AS ko apne haath se mitti se banaya. Woh pehle insaan the. Jannat mein rehte the. Phir zameen par aaye aur toubah ki — Allah ne maaf kar diya.", color: C.green, fact: "Quran mein 25 baar unka zikr hai" },
-  { name: "Nooh AS", arabic: "نوح", emoji: "🚢", story: "Hazrat Nooh AS ne 950 saal apni qoum ko samjhaya. Koi nahi maana toh Allah ne tofan bheja. Unhon ne kashti banayi — iman wale bache, zalimon ka wajood khatam hua.", color: C.blue, fact: "950 saal tak tabligh ki" },
-  { name: "Ibrahim AS", arabic: "إبراهيم", emoji: "🔥", story: "Hazrat Ibrahim AS ne but todey. Zaalim badshah Namrud ne unhe aag mein daala. Magar Allah ne aag ko hukm diya — Ibrahim ke liye thandi aur salamat ho ja! Aag gulzaar ban gayi.", color: C.orange, fact: "Khalilullah — Allah ke dost" },
-  { name: "Yusuf AS", arabic: "يوسف", emoji: "👑", story: "Hazrat Yusuf AS ke bhai ne unhe kuwen mein daala. Phir Misr mein ghulaam bane. Qaidi bane. Magar Allah ne unhe Misr ka Wazir-e-Aazam bana diya. Sabar ka ek mast nateeja!", color: C.yellow, fact: "Sabse khoobsurat kahani — poori surah unhi par" },
-  { name: "Moosa AS", arabic: "موسى", emoji: "🪄", story: "Hazrat Moosa AS Firown ke ghar mein pale. Allah ne unhe Nabi banaya. Lathhi se daryaa ko do hissa kar diya. Bani Israel ko aazaad karaya Firown ke zulm se.", color: C.teal, fact: "Quran mein sabse zyada naam aata hai" },
-  { name: "Isa AS", arabic: "عيسى", emoji: "🕊️", story: "Hazrat Isa AS bina baap ke paida hue — Allah ka mojza. Logon ko ilaj karte, andhe ko aankhein dete, murdon ko zinda karte. Aakhir aasman par utha liye gaye.", color: C.purple, fact: "Allah ka kalmah — Maryam AS ke bete" },
-  { name: "Muhammad ﷺ", arabic: "محمد", emoji: "🌙", story: "Nabi Kareem ﷺ Mecca mein paida hue. Ghaar-e-Hira mein pehli wahi aayi. 23 saal mein Quran mukammal hua. Poori insaaniyat ke liye rehmat bana ke bheje gaye.", color: C.yellow, fact: "Aakhri Nabi — Khatamun Nabiyyeen ﷺ" },
+  { name: "Adam AS",       arabic: "آدم",      emoji: "🌱", color: C.green,  fact: "Quran mein 25 baar unka zikr hai",              story: "Allah ne Hazrat Adam AS ko apne haath se mitti se banaya. Woh pehle insaan the. Jannat mein rehte the. Phir zameen par aaye aur toubah ki aur Allah ne maaf kar diya." },
+  { name: "Nooh AS",       arabic: "نوح",      emoji: "🚢", color: C.blue,   fact: "950 saal tak tabligh ki",                       story: "Hazrat Nooh AS ne 950 saal apni qoum ko samjhaya. Koi nahi maana toh Allah ne toofan bheja. Unhon ne kashti banayi. Iman wale bache aur zalimon ka wajood khatam hua." },
+  { name: "Ibrahim AS",    arabic: "إبراهيم",  emoji: "🔥", color: C.orange, fact: "Khalilullah yaani Allah ke dost",                story: "Hazrat Ibrahim AS ne but todey. Zaalim badshah Namrud ne unhe aag mein daala. Magar Allah ne aag ko hukm diya ke Ibrahim ke liye thandi aur salamat ho ja. Aag gulzaar ban gayi." },
+  { name: "Yusuf AS",      arabic: "يوسف",     emoji: "👑", color: C.yellow, fact: "Sabse khoobsurat kahani poori surah unhi par",   story: "Hazrat Yusuf AS ke bhai ne unhe kuwen mein daala. Phir Misr mein ghulaam bane. Qaidi bane. Magar Allah ne unhe Misr ka Wazir e Aazam bana diya. Sabar ka kitna acha nateeja." },
+  { name: "Moosa AS",      arabic: "موسى",     emoji: "🪄", color: C.teal,   fact: "Quran mein sabse zyada naam aata hai",           story: "Hazrat Moosa AS Firown ke ghar mein pale. Allah ne unhe Nabi banaya. Lathhi se darya ko do hissa kar diya. Bani Israel ko aazaad karaya Firown ke zulm se." },
+  { name: "Isa AS",        arabic: "عيسى",     emoji: "🕊️", color: C.purple, fact: "Allah ka kalmah aur Maryam AS ke bete",          story: "Hazrat Isa AS bina baap ke paida hue jo Allah ka mojza tha. Logon ko ilaj karte andhe ko aankhein dete murdon ko zinda karte. Aakhir aasman par utha liye gaye." },
+  { name: "Muhammad ﷺ",   arabic: "محمد",     emoji: "🌙", color: C.yellow, fact: "Aakhri Nabi Khatamun Nabiyyeen",                 story: "Nabi Kareem ﷺ Mecca mein paida hue. Ghaar e Hira mein pehli wahi aayi. Teis saal mein Quran mukammal hua. Poori insaaniyat ke liye rehmat bana ke bheje gaye." },
 ];
 
 const DUAS_KIDS = [
-  { title: "Khane Se Pehle", arabic: "بِسْمِ اللَّهِ", urdu: "Allah ke naam se shuru karta hoon", emoji: "🍽️", color: C.orange },
-  { title: "Khane Ke Baad", arabic: "الْحَمْدُ لِلَّهِ", urdu: "Tamam taarif Allah ke liye hai", emoji: "😊", color: C.green },
-  { title: "Sone Se Pehle", arabic: "بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا", urdu: "Tere naam se Allah, marta hoon aur jeeta hoon", emoji: "😴", color: C.blue },
-  { title: "Neend Se Uthke", arabic: "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا", urdu: "Shukar hai Allah ka jisne hamein zindagi di", emoji: "🌅", color: C.yellow },
-  { title: "Ghar Se Nikalte Waqt", arabic: "بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ", urdu: "Allah ke naam se, Allah par bharosa kiya", emoji: "🚪", color: C.pink },
-  { title: "Aaine Mein Dekh Ke", arabic: "اللَّهُمَّ أَنْتَ حَسَّنْتَ خَلْقِي", urdu: "Aye Allah, tune meri soorat achhi banayi", emoji: "🪞", color: C.teal },
+  { title: "Khane Se Pehle",     arabic: "بِسْمِ اللَّهِ",                          urdu: "Allah ke naam se shuru karta hoon",          emoji: "🍽️", color: C.orange },
+  { title: "Khane Ke Baad",      arabic: "الْحَمْدُ لِلَّهِ",                         urdu: "Tamam taarif Allah ke liye hai",             emoji: "😊",  color: C.green  },
+  { title: "Sone Se Pehle",      arabic: "بِاسْمِكَ اللَّهُمَّ أَمُوتُ وَأَحْيَا",   urdu: "Tere naam se Allah marta hoon aur jeeta hoon", emoji: "😴",  color: C.blue   },
+  { title: "Neend Se Uthke",     arabic: "الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا",      urdu: "Shukar hai Allah ka jisne hamein zindagi di", emoji: "🌅",  color: C.yellow },
+  { title: "Ghar Se Nikalte",    arabic: "بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ", urdu: "Allah ke naam se Allah par bharosa kiya",    emoji: "🚪",  color: C.pink   },
+  { title: "Aaine Mein Dekh Ke", arabic: "اللَّهُمَّ أَنْتَ حَسَّنْتَ خَلْقِي",      urdu: "Aye Allah tune meri soorat achhi banayi",    emoji: "🪞",  color: C.teal   },
 ];
 
-// ── Voice Button ─────────────────────────────────────────────────────
+// ── Shared styles ─────────────────────────────────────────────────────
+const backBtn = {
+  background: "transparent", border: "1px solid #2a3a4a",
+  color: C.dim, borderRadius: "10px", padding: "8px 16px",
+  cursor: "pointer", fontSize: "13px", marginBottom: "16px",
+};
+
+// ── Voice Button ──────────────────────────────────────────────────────
 function VoiceBtn({ onClick, speaking, color, size = "md" }) {
-  const sz = size === "sm" ? { btn: "28px", icon: "13px" } : { btn: "40px", icon: "17px" };
+  const sz = size === "sm" ? { btn: "30px", icon: "13px" } : { btn: "42px", icon: "18px" };
   return (
     <button
       onClick={e => { e.stopPropagation(); onClick(); }}
-      title="Suno 🔊"
+      title="Suno"
       style={{
         width: sz.btn, height: sz.btn, borderRadius: "50%", border: "none",
         background: speaking ? color : `${color}22`,
         display: "flex", alignItems: "center", justifyContent: "center",
         cursor: "pointer", fontSize: sz.icon, flexShrink: 0,
         transition: "all 0.2s",
-        boxShadow: speaking ? `0 0 12px ${color}88` : "none",
+        boxShadow: speaking ? `0 0 14px ${color}99` : "none",
       }}
     >
       {speaking ? "⏹" : "🔊"}
@@ -199,21 +208,25 @@ function VoiceBtn({ onClick, speaking, color, size = "md" }) {
 function HuroofView() {
   const [selected, setSelected] = useState(null);
   const [speaking, setSpeaking] = useState(null);
-  const [learned, setLearned] = useState(() => {
+  const [learned, setLearned]   = useState(() => {
     try { return JSON.parse(localStorage.getItem("kids_huroof") || "[]"); } catch { return []; }
   });
 
-  const playLetter = useCallback((l, id) => {
+  const playLetter = (l, id) => {
+    if (speaking === id) { stopAudio(); setSpeaking(null); return; }
     setSpeaking(id);
-    speakSequence([
-      { text: l.letter, lang: "ar-SA", rate: 0.6, pitch: 1.1, pause: 600 },
-      { text: l.name, lang: "ur-PK", rate: 0.85, pitch: 1.0, pause: 400 },
-    ]);
-    setTimeout(() => setSpeaking(null), 2500);
-  }, []);
+    // Sequence: Arabic letter → Arabic word → Urdu meaning
+    playSequenceTTS([
+      { text: l.letter,  lang: "ar", pause: 800 },
+      { text: l.word,    lang: "ar", pause: 700 },
+      { text: l.meaning, lang: "ur", pause: 300 },
+    ], () => setSpeaking(null));
+  };
 
   const toggleLearned = (name) => {
-    const updated = learned.includes(name) ? learned.filter(n => n !== name) : [...learned, name];
+    const updated = learned.includes(name)
+      ? learned.filter(n => n !== name)
+      : [...learned, name];
     setLearned(updated);
     localStorage.setItem("kids_huroof", JSON.stringify(updated));
   };
@@ -221,34 +234,45 @@ function HuroofView() {
   if (selected) {
     return (
       <div style={{ animation: "fadeUp 0.3s ease" }}>
-        <button onClick={() => { setSelected(null); window.speechSynthesis?.cancel(); }} style={backBtn}>← Wapas</button>
-        <div style={{ background: C.card, borderRadius: "28px", padding: "36px 24px", border: `2px solid ${selected.color}`, textAlign: "center", position: "relative" }}>
-          {/* Big emoji */}
-          <div style={{ fontSize: "56px", marginBottom: "8px", animation: "bounce 1s ease infinite" }}>{selected.emoji}</div>
+        <button onClick={() => { setSelected(null); stopAudio(); setSpeaking(null); }} style={backBtn}>← Wapas</button>
+        <div style={{
+          background: C.card, borderRadius: "28px", padding: "36px 24px",
+          border: `2px solid ${selected.color}`, textAlign: "center",
+        }}>
+          <div style={{ fontSize: "70px", marginBottom: "8px", animation: "bounce 1.5s ease infinite" }}>{selected.emoji}</div>
 
-          {/* Letter + voice */}
-          <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: "16px", marginBottom: "8px" }}>
-            <div style={{ fontSize: "88px", color: selected.color, fontFamily: "serif", lineHeight: 1, filter: `drop-shadow(0 0 20px ${selected.color}66)` }}>
-              {selected.letter}
-            </div>
+          <div style={{ fontSize: "24px", color: selected.color, fontFamily: "serif", direction: "rtl", marginBottom: "2px" }}>
+            {selected.word}
+          </div>
+          <div style={{ fontSize: "13px", color: C.dim, marginBottom: "16px", letterSpacing: "1px" }}>
+            {selected.meaning}
           </div>
 
-          {/* Speak button large */}
+          <div style={{
+            fontSize: "110px", color: selected.color, fontFamily: "serif",
+            lineHeight: 1, filter: `drop-shadow(0 0 28px ${selected.color}66)`, marginBottom: "20px",
+          }}>
+            {selected.letter}
+          </div>
+
           <button
             onClick={() => playLetter(selected, "detail")}
             style={{
-              display: "flex", alignItems: "center", gap: "8px", margin: "0 auto 20px",
-              padding: "10px 24px", borderRadius: "20px", border: "none",
+              display: "flex", alignItems: "center", gap: "8px",
+              margin: "0 auto 24px", padding: "12px 32px", borderRadius: "20px", border: "none",
               background: speaking === "detail" ? selected.color : `${selected.color}22`,
               color: speaking === "detail" ? "#0a0f1a" : selected.color,
               fontSize: "15px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s",
+              boxShadow: speaking === "detail" ? `0 0 16px ${selected.color}66` : "none",
             }}
           >
-            {speaking === "detail" ? "⏹ Ruk Jao" : "🔊 Sunao"}
+            {speaking === "detail" ? "⏹ Ruk Jao" : "🔊 Harf · Lafz · Matlab"}
           </button>
 
           <div style={{ fontSize: "26px", color: C.text, fontWeight: "800", marginBottom: "4px" }}>{selected.name}</div>
-          <div style={{ fontSize: "16px", color: C.dim, marginBottom: "28px" }}>Sound: <span style={{ color: selected.color, fontWeight: "700" }}>"{selected.sound}"</span></div>
+          <div style={{ fontSize: "15px", color: C.dim, marginBottom: "28px" }}>
+            Awaaz: <span style={{ color: selected.color, fontWeight: "700" }}>"{selected.sound}"</span>
+          </div>
 
           <button
             onClick={() => toggleLearned(selected.name)}
@@ -256,7 +280,7 @@ function HuroofView() {
               padding: "14px 36px", borderRadius: "20px", border: "none",
               background: learned.includes(selected.name)
                 ? `linear-gradient(135deg, ${C.green}, #16a34a)`
-                : `linear-gradient(135deg, ${selected.color}, ${selected.color}cc)`,
+                : `linear-gradient(135deg, ${selected.color}, ${selected.color}bb)`,
               color: "#0a0f1a", fontSize: "16px", fontWeight: "800", cursor: "pointer",
               boxShadow: `0 4px 16px ${selected.color}44`,
             }}
@@ -270,7 +294,7 @@ function HuroofView() {
 
   return (
     <div>
-      {/* Progress bar */}
+      {/* Progress */}
       <div style={{ background: C.card, borderRadius: "16px", padding: "16px", marginBottom: "16px", border: "1px solid #2a3a4a" }}>
         <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "8px" }}>
           <span style={{ color: C.text, fontSize: "13px", fontWeight: "600" }}>Seekhe hue Huroof</span>
@@ -293,37 +317,39 @@ function HuroofView() {
       <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: "10px" }}>
         {ARABIC_LETTERS.map((l, i) => (
           <div
-            key={l.name}
+            key={l.name + i}
             style={{
-              background: C.card, borderRadius: "16px", padding: "12px 6px",
+              background: C.card, borderRadius: "16px", padding: "10px 6px 8px",
               textAlign: "center", cursor: "pointer", position: "relative",
               border: `2px solid ${learned.includes(l.name) ? l.color : "#2a3a4a"}`,
               animation: `popIn 0.3s ease ${i * 0.02}s both`,
-              transition: "transform 0.15s",
+              transition: "transform 0.15s, border-color 0.2s",
             }}
-            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.05)"}
+            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.06)"}
             onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
           >
             {learned.includes(l.name) && (
               <div style={{ position: "absolute", top: "4px", right: "6px", fontSize: "10px", color: C.green }}>✓</div>
             )}
-            {/* Tap to speak + open */}
+            <div style={{ fontSize: "16px", marginBottom: "2px" }}>{l.emoji}</div>
             <div
               onClick={() => setSelected(l)}
-              style={{ fontSize: "30px", color: l.color, fontFamily: "serif", lineHeight: 1.2 }}
+              style={{ fontSize: "32px", color: l.color, fontFamily: "serif", lineHeight: 1.1 }}
             >{l.letter}</div>
-            <div style={{ fontSize: "10px", color: C.dim, marginTop: "4px" }}>{l.name}</div>
-            {/* Mini voice button */}
+            <div style={{ fontSize: "9px", color: C.dim, marginTop: "2px" }}>{l.name}</div>
+            <div style={{ fontSize: "10px", color: l.color, fontFamily: "serif", direction: "rtl", marginTop: "2px" }}>
+              {l.word}
+            </div>
+            <div style={{ fontSize: "9px", color: C.dim, marginTop: "1px" }}>{l.meaning}</div>
             <button
-              onClick={e => { e.stopPropagation(); playLetter(l, l.name); }}
+              onClick={e => { e.stopPropagation(); playLetter(l, l.name + i); }}
               style={{
-                marginTop: "6px", border: "none", background: "transparent",
+                marginTop: "5px", border: "none", background: "transparent",
                 cursor: "pointer", fontSize: "14px", padding: "2px",
-                opacity: speaking === l.name ? 1 : 0.5,
+                opacity: speaking === l.name + i ? 1 : 0.4, transition: "opacity 0.2s",
               }}
-              title="Suno"
             >
-              {speaking === l.name ? "⏹" : "🔊"}
+              {speaking === l.name + i ? "⏹" : "🔊"}
             </button>
           </div>
         ))}
@@ -339,38 +365,34 @@ function SurahsView() {
   const [playingAll, setPlayingAll] = useState(false);
 
   const playVerse = (verse, idx) => {
+    if (speaking === idx) { stopAudio(); setSpeaking(null); return; }
     setSpeaking(idx);
-    speakSequence([
-      { text: verse.ar, lang: "ar-SA", rate: 0.65, pitch: 1.0, pause: 700 },
-      { text: verse.ur, lang: "ur-PK", rate: 0.85, pitch: 1.0, pause: 300 },
-    ]);
-    setTimeout(() => setSpeaking(null), 3500);
+    playSequenceTTS([
+      { text: verse.ar, lang: "ar", pause: 700 },
+      { text: verse.ur, lang: "ur", pause: 400 },
+    ], () => setSpeaking(null));
   };
 
   const playAllVerses = (surah) => {
-    if (playingAll) { window.speechSynthesis?.cancel(); setPlayingAll(false); return; }
+    if (playingAll) { stopAudio(); setPlayingAll(false); return; }
     setPlayingAll(true);
-    const sequence = surah.verses.flatMap(v => ([
-      { text: v.ar, lang: "ar-SA", rate: 0.65, pitch: 1.0, pause: 600 },
-      { text: v.ur, lang: "ur-PK", rate: 0.85, pitch: 1.0, pause: 800 },
+    const seq = surah.verses.flatMap(v => ([
+      { text: v.ar, lang: "ar", pause: 600 },
+      { text: v.ur, lang: "ur", pause: 900 },
     ]));
-    speakSequence(sequence);
-    const totalMs = surah.verses.length * 5000;
-    setTimeout(() => setPlayingAll(false), totalMs);
+    playSequenceTTS(seq, () => setPlayingAll(false));
   };
 
   if (selected) {
     return (
       <div style={{ animation: "fadeUp 0.3s ease" }}>
-        <button onClick={() => { setSelected(null); window.speechSynthesis?.cancel(); setPlayingAll(false); }} style={backBtn}>← Wapas</button>
+        <button onClick={() => { setSelected(null); stopAudio(); setSpeaking(null); setPlayingAll(false); }} style={backBtn}>← Wapas</button>
         <div style={{ background: C.card, borderRadius: "22px", padding: "24px", border: `1px solid ${selected.color}` }}>
           <div style={{ textAlign: "center", marginBottom: "20px" }}>
             <div style={{ fontSize: "40px" }}>{selected.emoji}</div>
             <div style={{ color: selected.color, fontSize: "22px", fontWeight: "800", marginTop: "8px" }}>{selected.name}</div>
             <div style={{ color: C.text, fontSize: "28px", direction: "rtl", fontFamily: "serif", marginTop: "6px", lineHeight: 1.8 }}>{selected.arabic}</div>
             <div style={{ color: C.dim, fontSize: "13px", marginTop: "4px" }}>Matlab: {selected.meaning} • {selected.ayahs} Aayaat</div>
-
-            {/* Play All */}
             <button
               onClick={() => playAllVerses(selected)}
               style={{
@@ -384,7 +406,6 @@ function SurahsView() {
               {playingAll ? "⏹ Rokein" : "🔊 Poori Surah Sunao"}
             </button>
           </div>
-
           <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
             {selected.verses.map((v, i) => (
               <div key={i} style={{ background: "#0a0f1a", borderRadius: "14px", padding: "16px", borderLeft: `3px solid ${selected.color}` }}>
@@ -436,48 +457,41 @@ function ProphetsView() {
   const [speaking, setSpeaking] = useState(false);
 
   const playStory = (p) => {
-    if (speaking) { window.speechSynthesis?.cancel(); setSpeaking(false); return; }
+    if (speaking) { stopAudio(); setSpeaking(false); return; }
     setSpeaking(true);
-    speakSequence([
-      { text: p.arabic, lang: "ar-SA", rate: 0.7, pitch: 1.1, pause: 700 },
-      { text: p.story, lang: "ur-PK", rate: 0.88, pitch: 1.0, pause: 400 },
-      { text: p.fact, lang: "ur-PK", rate: 0.85, pitch: 1.0, pause: 300 },
-    ]);
-    const ms = p.story.length * 60 + 3000;
-    setTimeout(() => setSpeaking(false), ms);
+    playSequenceTTS([
+      { text: p.arabic, lang: "ar", pause: 900 },
+      { text: p.story,  lang: "ur", pause: 600 },
+      { text: p.fact,   lang: "ur", pause: 300 },
+    ], () => setSpeaking(false));
   };
 
   if (selected) {
     return (
       <div style={{ animation: "fadeUp 0.3s ease" }}>
-        <button onClick={() => { setSelected(null); window.speechSynthesis?.cancel(); setSpeaking(false); }} style={backBtn}>← Wapas</button>
+        <button onClick={() => { setSelected(null); stopAudio(); setSpeaking(false); }} style={backBtn}>← Wapas</button>
         <div style={{ background: C.card, borderRadius: "26px", padding: "28px", border: `2px solid ${selected.color}` }}>
           <div style={{ textAlign: "center", marginBottom: "20px" }}>
             <div style={{ fontSize: "64px", marginBottom: "8px", animation: "float 2s ease-in-out infinite" }}>{selected.emoji}</div>
             <div style={{ color: selected.color, fontSize: "26px", fontWeight: "800" }}>{selected.name}</div>
             <div style={{ color: C.text, fontSize: "26px", fontFamily: "serif", direction: "rtl", marginTop: "4px" }}>{selected.arabic}</div>
-
-            {/* Story voice button */}
             <button
               onClick={() => playStory(selected)}
               style={{
                 marginTop: "16px", padding: "10px 28px", borderRadius: "20px", border: "none",
                 background: speaking ? selected.color : `${selected.color}22`,
                 color: speaking ? "#0a0f1a" : selected.color,
-                fontSize: "14px", fontWeight: "700", cursor: "pointer",
+                fontSize: "14px", fontWeight: "700", cursor: "pointer", transition: "all 0.2s",
                 display: "flex", alignItems: "center", gap: "8px", margin: "16px auto 0",
-                transition: "all 0.2s",
               }}
             >
               {speaking ? "⏹ Rokein" : "🔊 Kahani Sunao"}
             </button>
           </div>
-
           <div style={{ background: "#0a0f1a", borderRadius: "16px", padding: "20px", marginBottom: "16px" }}>
             <div style={{ color: C.yellow, fontSize: "11px", letterSpacing: "2px", marginBottom: "10px" }}>📖 KAHANI</div>
             <div style={{ color: C.text, fontSize: "15px", lineHeight: "1.9" }}>{selected.story}</div>
           </div>
-
           <div style={{ background: `${selected.color}18`, border: `1px solid ${selected.color}55`, borderRadius: "12px", padding: "14px", display: "flex", alignItems: "center", gap: "10px" }}>
             <span style={{ fontSize: "20px" }}>⭐</span>
             <span style={{ color: selected.color, fontSize: "13px", fontWeight: "600" }}>{selected.fact}</span>
@@ -495,8 +509,8 @@ function ProphetsView() {
           onClick={() => setSelected(p)}
           style={{
             background: C.card, borderRadius: "18px", padding: "20px", cursor: "pointer",
-            textAlign: "center", border: `1px solid #2a3a4a`, animation: `popIn 0.3s ease ${i * 0.05}s both`,
-            transition: "all 0.2s",
+            textAlign: "center", border: `1px solid #2a3a4a`,
+            animation: `popIn 0.3s ease ${i * 0.05}s both`, transition: "all 0.2s",
           }}
           onMouseEnter={e => { e.currentTarget.style.borderColor = p.color; e.currentTarget.style.transform = "scale(1.02)"; }}
           onMouseLeave={e => { e.currentTarget.style.borderColor = "#2a3a4a"; e.currentTarget.style.transform = "scale(1)"; }}
@@ -512,17 +526,16 @@ function ProphetsView() {
 
 // ── Duas View ─────────────────────────────────────────────────────────
 function DuasView() {
-  const [flipped, setFlipped] = useState(null);
+  const [flipped, setFlipped]   = useState(null);
   const [speaking, setSpeaking] = useState(null);
 
   const playDua = (d, i) => {
-    if (speaking === i) { window.speechSynthesis?.cancel(); setSpeaking(null); return; }
+    if (speaking === i) { stopAudio(); setSpeaking(null); return; }
     setSpeaking(i);
-    speakSequence([
-      { text: d.arabic, lang: "ar-SA", rate: 0.65, pitch: 1.05, pause: 800 },
-      { text: d.urdu, lang: "ur-PK", rate: 0.85, pitch: 1.0, pause: 300 },
-    ]);
-    setTimeout(() => setSpeaking(null), 5000);
+    playSequenceTTS([
+      { text: d.arabic, lang: "ar", pause: 900 },
+      { text: d.urdu,   lang: "ur", pause: 300 },
+    ], () => setSpeaking(null));
   };
 
   return (
@@ -550,7 +563,6 @@ function DuasView() {
                 </div>
               )}
             </div>
-            {/* Voice + toggle */}
             <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
               <VoiceBtn onClick={() => playDua(d, i)} speaking={speaking === i} color={d.color} size="sm" />
               <div style={{ color: d.color, fontSize: "18px" }}>{flipped === i ? "▲" : "▼"}</div>
@@ -562,60 +574,43 @@ function DuasView() {
   );
 }
 
-// ── Shared style ──────────────────────────────────────────────────────
-const backBtn = {
-  background: "transparent", border: "1px solid #2a3a4a",
-  color: C.dim, borderRadius: "10px", padding: "8px 14px",
-  cursor: "pointer", fontSize: "13px", marginBottom: "16px",
-};
-
-// ── Main Component ────────────────────────────────────────────────────
+// ── Main ──────────────────────────────────────────────────────────────
 export default function KidsGraph() {
   const [tab, setTab] = useState("huroof");
 
   const tabs = [
-    { id: "huroof", label: "Huroof", emoji: "🔤" },
-    { id: "surahs", label: "Surahs", emoji: "📖" },
+    { id: "huroof",   label: "Huroof", emoji: "🔤" },
+    { id: "surahs",   label: "Surahs", emoji: "📖" },
     { id: "prophets", label: "Anbiya", emoji: "⭐" },
-    { id: "duas", label: "Duaen", emoji: "🤲" },
+    { id: "duas",     label: "Duaen",  emoji: "🤲" },
   ];
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "system-ui, sans-serif", paddingBottom: "90px" }}>
-      {/* Header */}
-      <div style={{
-        background: "linear-gradient(135deg, #111827, #0a0f1a)",
-        borderBottom: "1px solid #1f2d3a", padding: "24px 20px 16px"
-      }}>
+      <div style={{ background: "linear-gradient(135deg, #111827, #0a0f1a)", borderBottom: "1px solid #1f2d3a", padding: "24px 20px 16px" }}>
         <div style={{ textAlign: "center" }}>
           <div style={{ fontSize: "34px", marginBottom: "4px" }}>👶</div>
           <h1 style={{
             fontSize: "22px", fontWeight: "800", margin: "0 0 4px",
             background: `linear-gradient(90deg, ${C.yellow}, ${C.orange})`,
-            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent"
-          }}>
-            Kids Corner
-          </h1>
-          <p style={{ color: C.dim, fontSize: "12px", margin: "0 0 8px" }}>
-            Islamic seekho — khel khel mein! 🌟
-          </p>
+            WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+          }}>Kids Corner</h1>
+          <p style={{ color: C.dim, fontSize: "12px", margin: "0 0 10px" }}>Islamic seekho — khel khel mein! 🌟</p>
           <div style={{
             display: "inline-flex", alignItems: "center", gap: "6px",
             background: "rgba(201,168,76,0.1)", border: "1px solid rgba(201,168,76,0.2)",
-            borderRadius: "20px", padding: "4px 12px",
-            color: C.gold, fontSize: "11px",
+            borderRadius: "20px", padding: "4px 14px", color: C.gold, fontSize: "11px",
           }}>
-            🔊 Har jagah voice button dabao — sunao!
+            🔊 Clear Arabic + Urdu voice — Google TTS
           </div>
         </div>
       </div>
 
-      {/* Tabs */}
       <div style={{ display: "flex", borderBottom: "1px solid #1f2d3a", background: "#0d1520", position: "sticky", top: 0, zIndex: 10 }}>
         {tabs.map(t => (
           <button
             key={t.id}
-            onClick={() => { setTab(t.id); window.speechSynthesis?.cancel(); }}
+            onClick={() => { setTab(t.id); stopAudio(); }}
             style={{
               flex: 1, padding: "12px 4px", border: "none", background: "transparent",
               cursor: "pointer", display: "flex", flexDirection: "column", alignItems: "center", gap: "4px",
@@ -631,20 +626,19 @@ export default function KidsGraph() {
         ))}
       </div>
 
-      {/* Content */}
       <div style={{ padding: "20px", maxWidth: "480px", margin: "0 auto" }}>
-        {tab === "huroof" && <HuroofView />}
-        {tab === "surahs" && <SurahsView />}
+        {tab === "huroof"   && <HuroofView />}
+        {tab === "surahs"   && <SurahsView />}
         {tab === "prophets" && <ProphetsView />}
-        {tab === "duas" && <DuasView />}
+        {tab === "duas"     && <DuasView />}
       </div>
 
       <style>{`
-        @keyframes popIn { from { opacity:0; transform:scale(0.85); } to { opacity:1; transform:scale(1); } }
+        @keyframes popIn   { from { opacity:0; transform:scale(0.85);      } to { opacity:1; transform:scale(1);      } }
         @keyframes slideIn { from { opacity:0; transform:translateX(-14px); } to { opacity:1; transform:translateX(0); } }
-        @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
-        @keyframes float { 0%,100%{transform:translateY(0)} 50%{transform:translateY(-8px)} }
-        @keyframes bounce { 0%,100%{transform:scale(1)} 50%{transform:scale(1.08)} }
+        @keyframes fadeUp  { from { opacity:0; transform:translateY(10px);  } to { opacity:1; transform:translateY(0); } }
+        @keyframes float   { 0%,100%{transform:translateY(0)}  50%{transform:translateY(-8px)} }
+        @keyframes bounce  { 0%,100%{transform:scale(1)}       50%{transform:scale(1.08)}      }
       `}</style>
     </div>
   );
