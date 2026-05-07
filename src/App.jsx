@@ -218,7 +218,7 @@ function BottomNav() {
     {
       path:'/kids',
       icon:<TbMoodKid />,
-      lable:'Kids',
+      label:'Kids',
     },
 
     {
