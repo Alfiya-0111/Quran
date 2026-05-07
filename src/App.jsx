@@ -22,6 +22,7 @@ import { BsPeople } from 'react-icons/bs';
 import { TbPlayCard2 } from "react-icons/tb";
 import { GiPrayerBeads } from "react-icons/gi"
 import { PiHandsPrayingFill } from "react-icons/pi"
+import { MdOutlineQuiz } from "react-icons/md";
 import Home from "./pages/Home";
 import Reader from "./pages/Reader";
 import MoodFinder from "./pages/MoodFinder";
@@ -39,6 +40,7 @@ import Names from './pages/Names'
 
 import "./App.css";
 import Kids from "./pages/Kids";
+import IslamicQuiz from "./components/IslamicQuiz";
 
 
 
@@ -220,7 +222,11 @@ function BottomNav() {
       icon:<TbMoodKid />,
       label:'Kids',
     },
-
+{
+path: '/quiz',
+icon: <MdOutlineQuiz />,
+label:'Quiz'
+},
     {
       path: "/cards",
       icon: <TbPlayCard2 />,
@@ -384,6 +390,7 @@ function App() {
 
           <Route path="/prayer" element={<Layout><Prayer /></Layout>} />
            <Route path="/kids" element={<Layout><Kids /></Layout>} />
+                      <Route path="/quiz" element={<Layout><IslamicQuiz /></Layout>} />
 
           <Route path="/cards" element={<Layout><Cards /></Layout>} />
 
