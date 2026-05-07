@@ -438,6 +438,7 @@ function QuizScreen({ category, onBack, onComplete }) {
                 </span>
                 {opt}
               </button>
+              
             );
           })}
         </div>
@@ -460,7 +461,26 @@ function QuizScreen({ category, onBack, onComplete }) {
             </div>
           </div>
         )}
-
+{/* Share Results */}
+<div style={{ marginTop: "20px" }}>
+  <div style={{ color: C.dim, fontSize: "12px", textAlign: "center", marginBottom: "12px" }}>
+    Share your results! 🎉
+  </div>
+  <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
+    <button onClick={() => shareToWhatsApp(score, totalPossible, percentage, category.name, correctCount, answers.length)}
+      style={{ padding: "10px 16px", borderRadius: "12px", border: "none", background: "#25D366", color: "white", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
+      📱 WhatsApp
+    </button>
+    <button onClick={() => shareResults(score, totalPossible, percentage, category.name, correctCount, answers.length)}
+      style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid rgba(201,168,76,0.3)", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
+      🔗 Share
+    </button>
+    <button onClick={() => copyResults(score, totalPossible, percentage, category.name, correctCount, answers.length)}
+      style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #2a3a4a", background: "#111827", color: "#8a9ab0", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
+      📋 Copy
+    </button>
+  </div>
+</div>
         {/* Next Button */}
         {showResult && (
           <button
@@ -720,7 +740,49 @@ export default function IslamicQuiz() {
   const retryQuiz = () => {
     setScreen("quiz");
   };
+const shareResults = async (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
+    const message = `🧠 *Islamic Quiz Results* 🧠\n\n` +
+      `📚 Category: *${categoryName}*\n` +
+      `⭐ Score: *${score} / ${totalPossible}*\n` +
+      `📊 Percentage: *${percentage}%*\n` +
+      `✅ Correct: *${correctCount} / ${totalQuestions}*\n\n` +
+      `Test your Islamic knowledge too! 🌙`;
 
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Islamic Quiz Results',
+          text: message.replace(/\*/g, ''),
+          url: window.location.href,
+        });
+        return;
+      } catch (err) {}
+    }
+    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+    window.open(whatsappUrl, '_blank');
+  };
+
+  const shareToWhatsApp = (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
+    const message = `🧠 *Islamic Quiz Results* 🧠%0A%0A` +
+      `📚 Category: *${categoryName}*%0A` +
+      `⭐ Score: *${score} / ${totalPossible}*%0A` +
+      `📊 Percentage: *${percentage}%*%0A` +
+      `✅ Correct: *${correctCount} / ${totalQuestions}*%0A%0A` +
+      `Test your Islamic knowledge too! 🌙`;
+    window.open(`https://wa.me/?text=${message}`, '_blank');
+  };
+
+  const copyResults = (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
+    const text = `🧠 Islamic Quiz Results 🧠\n\n` +
+      `📚 Category: ${categoryName}\n` +
+      `⭐ Score: ${score} / ${totalPossible}\n` +
+      `📊 Percentage: ${percentage}%\n` +
+      `✅ Correct: ${correctCount} / ${totalQuestions}\n\n` +
+      `Test your Islamic knowledge too! 🌙`;
+    navigator.clipboard.writeText(text).then(() => {
+      alert('Results copied to clipboard! 📋');
+    });
+  };
   const totalQuizzes = scores.length;
   const totalScore = scores.reduce((a, b) => a + b.score, 0);
 
