@@ -2,13 +2,125 @@
 <html lang="en">
   <head>
     <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
-    <meta name="google-site-verification" content="FJRAg3b3wVyQmcU_Qvs_FAffMRsOooYZbEpborZkkU0" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vite-project</title>
+
+    <!-- ── Favicon & PWA ── -->
+    <link rel="icon" type="image/svg+xml" href="./favicon.svg" />
+    <link rel="apple-touch-icon" href="./apple-touch-icon.png" />
+    <link rel="manifest" href="./manifest.webmanifest" />
+    <meta name="theme-color" content="#0a0a0f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Soul Ayah" />
+
+    <!-- ── Primary SEO ── -->
+    <title>Soul Ayah — Read Quran Online with Translation, Tafsir & Duas</title>
+    <meta name="description" content="Read the Holy Quran online with Arabic text, Urdu & English translation, word-by-word tafsir, and mood-based duas. Free Islamic app with prayer times, Qibla direction, azkar, and Islamic quiz." />
+    <meta name="keywords" content="read quran online, quran with translation, quran in english, quran in urdu, quran sharif, quran app, quran tafsir, quran word by word, surah quran, ayat quran, duas, islamic app, prayer times, namaz time, qibla direction, azkar, tasbeeh, islamic quiz, quran recitation, holy quran, quran pak, quran majeed" />
+    <meta name="author" content="Soul Ayah" />
+    <meta name="robots" content="index, follow, max-snippet:-1, max-image-preview:large, max-video-preview:-1" />
+    <link rel="canonical" href="https://soulayah.vercel.app/" />
+
+    <!-- ── Google Verification ── -->
+    <meta name="google-site-verification" content="FJRAg3b3wVyQmcU_Qvs_FAffMRsOooYZbEpborZkkU0" />
+
+    <!-- ── Open Graph ── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Soul Ayah" />
+    <meta property="og:title" content="Soul Ayah — Read Quran Online with Translation, Tafsir & Duas" />
+    <meta property="og:description" content="Read the Holy Quran online with Arabic text, Urdu & English translation, word-by-word tafsir, and mood-based duas. Free Islamic app with prayer times and Qibla direction." />
+    <meta property="og:url" content="https://soulayah.vercel.app/" />
+    <meta property="og:image" content="https://soulayah.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:image:alt" content="Soul Ayah — Read Quran Online" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ── Twitter Card ── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Soul Ayah — Read Quran Online with Translation & Tafsir" />
+    <meta name="twitter:description" content="Read the Holy Quran with Arabic text, translation, word-by-word tafsir, prayer times and mood-based duas. Free Islamic app." />
+    <meta name="twitter:image" content="https://soulayah.vercel.app/og-image.png" />
+
+    <!-- ── Preconnect (Page Speed) ── -->
+    <link rel="preconnect" href="https://api.quran.com" />
+    <link rel="preconnect" href="https://api.alquran.cloud" />
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+    <link rel="dns-prefetch" href="https://generativelanguage.googleapis.com" />
+    <link rel="dns-prefetch" href="https://res.cloudinary.com" />
+
+    <!-- ── App Assets ── -->
     <script type="module" crossorigin src="./assets/index-PKGdG9WK.js"></script>
-    <link rel="stylesheet" crossorigin href="./assets/index-C6-yuH9R.css">
-  <link rel="manifest" href="./manifest.webmanifest"></head>
+    <link rel="stylesheet" crossorigin href="./assets/index-C6-yuH9R.css" />
+
+    <!-- ── JSON-LD: WebApplication ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebApplication",
+      "name": "Soul Ayah",
+      "alternateName": ["Soul Ayah Quran App", "Read Quran Online"],
+      "description": "Read the Holy Quran online with Arabic text, Urdu and English translation, word-by-word tafsir, mood-based duas, prayer times, and Qibla direction.",
+      "url": "https://soulayah.vercel.app",
+      "applicationCategory": "LifestyleApplication",
+      "operatingSystem": "Any",
+      "inLanguage": ["en", "ar", "ur"],
+      "offers": {
+        "@type": "Offer",
+        "price": "0",
+        "priceCurrency": "USD"
+      },
+      "featureList": [
+        "Read Quran online with Arabic text",
+        "Quran with English and Urdu translation",
+        "Word-by-word Quran tafsir",
+        "Mood-based duas finder",
+        "Prayer times with Qibla direction",
+        "AI Tafsir chat",
+        "Islamic quiz",
+        "Quranic vocabulary builder",
+        "Azkar and tasbeeh counter",
+        "Islamic stories for kids"
+      ],
+      "screenshot": "https://soulayah.vercel.app/og-image.png"
+    }
+    </script>
+
+    <!-- ── JSON-LD: WebSite (enables Google Sitelinks Search) ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "Soul Ayah",
+      "url": "https://soulayah.vercel.app",
+      "description": "Read Quran online with translation, tafsir, duas and prayer times.",
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": {
+          "@type": "EntryPoint",
+          "urlTemplate": "https://soulayah.vercel.app/reader?q={search_term_string}"
+        },
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
+
+    <!-- ── JSON-LD: BreadcrumbList ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "BreadcrumbList",
+      "itemListElement": [
+        { "@type": "ListItem", "position": 1, "name": "Home",         "item": "https://soulayah.vercel.app/" },
+        { "@type": "ListItem", "position": 2, "name": "Quran Reader", "item": "https://soulayah.vercel.app/reader" },
+        { "@type": "ListItem", "position": 3, "name": "Duas & Azkar", "item": "https://soulayah.vercel.app/duas" },
+        { "@type": "ListItem", "position": 4, "name": "Prayer Times", "item": "https://soulayah.vercel.app/prayer" },
+        { "@type": "ListItem", "position": 5, "name": "Tafsir Chat",  "item": "https://soulayah.vercel.app/tafsir" }
+      ]
+    }
+    </script>
+  </head>
   <body>
     <div id="root"></div>
   </body>

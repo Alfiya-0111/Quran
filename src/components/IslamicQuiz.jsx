@@ -1,4 +1,9 @@
-import { useState, useEffect, useCallback } from "react";
+import React, { useState, useEffect, useCallback, lazy, Suspense, memo } from "react";
+import { Helmet, HelmetProvider } from "react-helmet-async";
+
+// ─── Lazy Loaded Components ───────────────────────────────────────────
+const ResultsScreen = lazy(() => import("./ResultsScreen"));
+const Leaderboard = lazy(() => import("./Leaderboard"));
 
 // ─── Palette ──────────────────────────────────────────────────────────
 const C = {
@@ -153,6 +158,104 @@ function shuffleArray(arr) {
   return a;
 }
 
+// ─── Memoized Category Card ───────────────────────────────────────────
+const CategoryCard = memo(({ cat, bestScore, onClick }) => {
+  return (
+    <article
+      onClick={onClick}
+      style={{
+        background: C.card, borderRadius: "20px", padding: "24px",
+        border: `1px solid ${bestScore === 100 ? cat.color : "#2a3a4a"}`,
+        cursor: "pointer", position: "relative", overflow: "hidden",
+        transition: "all 0.25s ease",
+      }}
+      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = cat.color; e.currentTarget.style.boxShadow = `0 8px 32px ${cat.color}22`; }}
+      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = bestScore === 100 ? cat.color : "#2a3a4a"; e.currentTarget.style.boxShadow = "none"; }}
+    >
+      {bestScore === 100 && (
+        <div style={{ position: "absolute", top: "10px", right: "10px", fontSize: "20px" }} aria-label="Perfect score">🏆</div>
+      )}
+      <div style={{ fontSize: "40px", marginBottom: "12px" }} aria-hidden="true">{cat.emoji}</div>
+      <h3 style={{ color: cat.color, fontSize: "18px", fontWeight: "700", marginBottom: "2px" }}>{cat.name}</h3>
+      <div style={{ color: C.dim, fontSize: "11px", fontFamily: "serif", direction: "rtl", marginBottom: "8px" }}>{cat.arabic}</div>
+      <p style={{ color: C.dim, fontSize: "12px", lineHeight: "1.5" }}>{cat.description}</p>
+      <div style={{ marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span style={{ color: C.dim, fontSize: "11px" }}>{cat.questions.length} Questions</span>
+        {bestScore > 0 && (
+          <span style={{ color: cat.color, fontSize: "12px", fontWeight: "700" }}>Best: {bestScore}%</span>
+        )}
+      </div>
+      <div style={{
+        position: "absolute", bottom: 0, left: 0, right: 0, height: "3px",
+        background: `linear-gradient(90deg, ${cat.color}, ${cat.color}66)`,
+        opacity: 0.6, borderRadius: "0 0 20px 20px",
+      }} />
+    </article>
+  );
+});
+
+CategoryCard.displayName = 'CategoryCard';
+
+// ─── SEO Structured Data ──────────────────────────────────────────────
+const generateQuizStructuredData = (categories) => ({
+  "@context": "https://schema.org",
+  "@type": "Quiz",
+  "name": "Islamic Quiz - Test Your Knowledge",
+  "description": "Test your Islamic knowledge with quizzes on Quran, Prophets, Pillars of Islam, Duas, Seerah, and General Islamic topics. Available in Hindi/Urdu/English.",
+  "educationalLevel": "Beginner to Advanced",
+  "inLanguage": ["en", "hi", "ur"],
+  "about": categories.map(cat => ({
+    "@type": "Thing",
+    "name": cat.name,
+    "description": cat.description
+  }))
+});
+
+// ─── Share Utilities ──────────────────────────────────────────────────
+const shareResults = async (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
+  const message = `🧠 *Islamic Quiz Results* 🧠\n\n` +
+    `📚 Category: *${categoryName}*\n` +
+    `⭐ Score: *${score} / ${totalPossible}*\n` +
+    `📊 Percentage: *${percentage}%*\n` +
+    `✅ Correct: *${correctCount} / ${totalQuestions}*\n\n` +
+    `Test your Islamic knowledge too! 🌙`;
+
+  if (navigator.share) {
+    try {
+      await navigator.share({
+        title: 'Islamic Quiz Results',
+        text: message.replace(/\*/g, ''),
+        url: window.location.href,
+      });
+      return;
+    } catch (err) { /* user cancelled */ }
+  }
+  const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
+  window.open(whatsappUrl, '_blank');
+};
+
+const shareToWhatsApp = (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
+  const message = `🧠 *Islamic Quiz Results* 🧠%0A%0A` +
+    `📚 Category: *${categoryName}*%0A` +
+    `⭐ Score: *${score} / ${totalPossible}*%0A` +
+    `📊 Percentage: *${percentage}%*%0A` +
+    `✅ Correct: *${correctCount} / ${totalQuestions}*%0A%0A` +
+    `Test your Islamic knowledge too! 🌙`;
+  window.open(`https://wa.me/?text=${message}`, '_blank');
+};
+
+const copyResults = (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
+  const text = `🧠 Islamic Quiz Results 🧠\n\n` +
+    `📚 Category: ${categoryName}\n` +
+    `⭐ Score: ${score} / ${totalPossible}\n` +
+    `📊 Percentage: ${percentage}%\n` +
+    `✅ Correct: ${correctCount} / ${totalQuestions}\n\n` +
+    `Test your Islamic knowledge too! 🌙`;
+  navigator.clipboard.writeText(text).then(() => {
+    alert('Results copied to clipboard! 📋');
+  });
+};
+
 // ─── Confetti Component ─────────────────────────────────────────────
 function Confetti() {
   const pieces = Array.from({ length: 30 }, (_, i) => ({
@@ -165,7 +268,7 @@ function Confetti() {
   }));
 
   return (
-    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100, overflow: "hidden" }}>
+    <div style={{ position: "fixed", inset: 0, pointerEvents: "none", zIndex: 100, overflow: "hidden" }} aria-hidden="true">
       {pieces.map(p => (
         <div
           key={p.id}
@@ -198,7 +301,7 @@ function ProgressRing({ progress, size = 80, stroke = 6, color = C.gold }) {
   const offset = circumference - (progress / 100) * circumference;
 
   return (
-    <div style={{ position: "relative", width: size, height: size }}>
+    <div style={{ position: "relative", width: size, height: size }} role="img" aria-label={`${Math.round(progress)}% complete`}>
       <svg width={size} height={size} style={{ transform: "rotate(-90deg)" }}>
         <circle cx={size / 2} cy={size / 2} r={radius} fill="none" stroke="rgba(255,255,255,0.08)" strokeWidth={stroke} />
         <circle
@@ -228,44 +331,8 @@ function StreakBadge({ streak }) {
       background: `${fireColor}22`, border: `1px solid ${fireColor}55`,
       borderRadius: "20px", padding: "3px 10px", fontSize: "12px", fontWeight: "700",
       color: fireColor, animation: "pulse 1s ease-in-out infinite",
-    }}>
+    }} aria-label={`${streak} streak`}>
       🔥 {streak}x Streak!
-    </div>
-  );
-}
-
-// ─── Category Card ────────────────────────────────────────────────────
-function CategoryCard({ cat, onClick, bestScore }) {
-  return (
-    <div
-      onClick={onClick}
-      style={{
-        background: C.card, borderRadius: "20px", padding: "24px",
-        border: `1px solid ${bestScore === 100 ? cat.color : "#2a3a4a"}`,
-        cursor: "pointer", position: "relative", overflow: "hidden",
-        transition: "all 0.25s ease",
-      }}
-      onMouseEnter={e => { e.currentTarget.style.transform = "translateY(-4px)"; e.currentTarget.style.borderColor = cat.color; e.currentTarget.style.boxShadow = `0 8px 32px ${cat.color}22`; }}
-      onMouseLeave={e => { e.currentTarget.style.transform = "translateY(0)"; e.currentTarget.style.borderColor = bestScore === 100 ? cat.color : "#2a3a4a"; e.currentTarget.style.boxShadow = "none"; }}
-    >
-      {bestScore === 100 && (
-        <div style={{ position: "absolute", top: "10px", right: "10px", fontSize: "20px" }}>🏆</div>
-      )}
-      <div style={{ fontSize: "40px", marginBottom: "12px" }}>{cat.emoji}</div>
-      <div style={{ color: cat.color, fontSize: "18px", fontWeight: "700", marginBottom: "2px" }}>{cat.name}</div>
-      <div style={{ color: C.dim, fontSize: "11px", fontFamily: "serif", direction: "rtl", marginBottom: "8px" }}>{cat.arabic}</div>
-      <div style={{ color: C.dim, fontSize: "12px", lineHeight: "1.5" }}>{cat.description}</div>
-      <div style={{ marginTop: "12px", display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <span style={{ color: C.dim, fontSize: "11px" }}>{cat.questions.length} Questions</span>
-        {bestScore > 0 && (
-          <span style={{ color: cat.color, fontSize: "12px", fontWeight: "700" }}>Best: {bestScore}%</span>
-        )}
-      </div>
-      <div style={{
-        position: "absolute", bottom: 0, left: 0, right: 0, height: "3px",
-        background: `linear-gradient(90deg, ${cat.color}, ${cat.color}66)`,
-        opacity: 0.6, borderRadius: "0 0 20px 20px",
-      }} />
     </div>
   );
 }
@@ -287,14 +354,14 @@ function QuizScreen({ category, onBack, onComplete }) {
   useEffect(() => {
     if (!timerActive || showResult) return;
     if (timeLeft <= 0) {
-      handleAnswer(-1); // timeout
+      handleAnswer(-1);
       return;
     }
     const t = setTimeout(() => setTimeLeft(prev => prev - 1), 1000);
     return () => clearTimeout(t);
   }, [timeLeft, timerActive, showResult]);
 
-  const handleAnswer = (idx) => {
+  const handleAnswer = useCallback((idx) => {
     if (showResult) return;
     setTimerActive(false);
     setSelected(idx);
@@ -305,7 +372,6 @@ function QuizScreen({ category, onBack, onComplete }) {
       const newStreak = streak + 1;
       setStreak(newStreak);
       setBestStreak(prev => Math.max(prev, newStreak));
-      // Bonus for streak
       const streakBonus = newStreak >= 3 ? 10 : newStreak >= 2 ? 5 : 0;
       setScore(prev => prev + 10 + streakBonus);
     } else {
@@ -313,9 +379,9 @@ function QuizScreen({ category, onBack, onComplete }) {
     }
 
     setAnswers(prev => [...prev, { question: questions[current].q, correct: isCorrect, selected: idx, fact: questions[current].fact }]);
-  };
+  }, [showResult, questions, current, streak]);
 
-  const nextQuestion = () => {
+  const nextQuestion = useCallback(() => {
     if (current + 1 >= questions.length) {
       onComplete(score, answers, bestStreak);
       return;
@@ -325,7 +391,7 @@ function QuizScreen({ category, onBack, onComplete }) {
     setShowResult(false);
     setTimeLeft(15);
     setTimerActive(true);
-  };
+  }, [current, questions.length, score, answers, bestStreak, onComplete]);
 
   const q = questions[current];
   const progress = ((current) / questions.length) * 100;
@@ -334,7 +400,7 @@ function QuizScreen({ category, onBack, onComplete }) {
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "system-ui, sans-serif", paddingBottom: "40px" }}>
       {/* Header */}
-      <div style={{
+      <header style={{
         background: "linear-gradient(180deg, #111820, #0a0f1a)",
         borderBottom: "1px solid rgba(201,168,76,0.1)", padding: "20px",
         position: "sticky", top: 0, zIndex: 10, backdropFilter: "blur(20px)",
@@ -343,6 +409,7 @@ function QuizScreen({ category, onBack, onComplete }) {
           <button
             onClick={onBack}
             style={{ background: "transparent", border: "1px solid #2a3a4a", color: C.dim, borderRadius: "10px", padding: "8px 14px", cursor: "pointer", fontSize: "13px" }}
+            aria-label="Exit quiz"
           >
             ← Exit
           </button>
@@ -357,16 +424,16 @@ function QuizScreen({ category, onBack, onComplete }) {
         </div>
 
         {/* Progress bar */}
-        <div style={{ maxWidth: "600px", margin: "12px auto 0", background: "rgba(255,255,255,0.05)", borderRadius: "6px", height: "6px", overflow: "hidden" }}>
+        <div style={{ maxWidth: "600px", margin: "12px auto 0", background: "rgba(255,255,255,0.05)", borderRadius: "6px", height: "6px", overflow: "hidden" }} role="progressbar" aria-valuenow={progress} aria-valuemin={0} aria-valuemax={100}>
           <div style={{
             background: `linear-gradient(90deg, ${category.color}, ${category.color}88)`,
             height: "100%", width: `${progress}%`, borderRadius: "6px", transition: "width 0.4s ease",
           }} />
         </div>
-      </div>
+      </header>
 
       {/* Question Card */}
-      <div style={{ maxWidth: "600px", margin: "24px auto", padding: "0 20px" }}>
+      <main style={{ maxWidth: "600px", margin: "24px auto", padding: "0 20px" }}>
         {/* Timer */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "center", marginBottom: "20px" }}>
           <div style={{
@@ -376,7 +443,7 @@ function QuizScreen({ category, onBack, onComplete }) {
             fontSize: "18px", fontWeight: "800",
             color: timeLeft <= 5 ? C.red : timeLeft <= 8 ? C.orange : category.color,
             animation: timeLeft <= 5 ? "pulse 0.5s ease-in-out infinite" : "none",
-          }}>
+          }} aria-label={`${timeLeft} seconds remaining`}>
             {timeLeft}
           </div>
         </div>
@@ -389,13 +456,13 @@ function QuizScreen({ category, onBack, onComplete }) {
           <div style={{ color: C.dim, fontSize: "11px", letterSpacing: "2px", marginBottom: "12px", textTransform: "uppercase" }}>
             Question {current + 1}
           </div>
-          <div style={{ fontSize: "18px", fontWeight: "600", lineHeight: "1.6", marginBottom: "4px" }}>
+          <h2 style={{ fontSize: "18px", fontWeight: "600", lineHeight: "1.6", marginBottom: "4px" }}>
             {q.q}
-          </div>
+          </h2>
         </div>
 
         {/* Options */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
+        <div style={{ display: "flex", flexDirection: "column", gap: "10px" }} role="radiogroup" aria-label="Answer options">
           {q.options.map((opt, i) => {
             let bg = C.card;
             let border = "#2a3a4a";
@@ -420,6 +487,8 @@ function QuizScreen({ category, onBack, onComplete }) {
                   color, fontSize: "15px", fontWeight: "500", transition: "all 0.2s",
                   display: "flex", alignItems: "center", gap: "12px",
                 }}
+                role="radio"
+                aria-checked={selected === i}
               >
                 <span style={{
                   width: "28px", height: "28px", borderRadius: "50%",
@@ -431,14 +500,13 @@ function QuizScreen({ category, onBack, onComplete }) {
                     : selected === i ? category.color : "#2a3a4a"}`,
                   display: "flex", alignItems: "center", justifyContent: "center",
                   fontSize: "12px", fontWeight: "700", flexShrink: 0,
-                }}>
+                }} aria-hidden="true">
                   {showResult
                     ? (i === q.correct ? "✓" : i === selected ? "✗" : String.fromCharCode(65 + i))
                     : String.fromCharCode(65 + i)}
                 </span>
                 {opt}
               </button>
-              
             );
           })}
         </div>
@@ -449,38 +517,48 @@ function QuizScreen({ category, onBack, onComplete }) {
             marginTop: "16px", background: isCorrect ? "rgba(74,222,128,0.08)" : "rgba(248,113,113,0.08)",
             border: `1px solid ${isCorrect ? "rgba(74,222,128,0.2)" : "rgba(248,113,113,0.2)"}`,
             borderRadius: "14px", padding: "16px", animation: "fadeUp 0.3s ease",
-          }}>
+          }} role="alert">
             <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
-              <span style={{ fontSize: "18px" }}>{isCorrect ? "✅" : "❌"}</span>
+              <span style={{ fontSize: "18px" }} aria-hidden="true">{isCorrect ? "✅" : "❌"}</span>
               <span style={{ color: isCorrect ? C.green : C.red, fontWeight: "700", fontSize: "14px" }}>
                 {isCorrect ? "Sahi jawab!" : selected === -1 ? "Waqt khatam!" : "Galat jawab!"}
               </span>
             </div>
-            <div style={{ color: C.dim, fontSize: "13px", lineHeight: "1.6" }}>
+            <p style={{ color: C.dim, fontSize: "13px", lineHeight: "1.6" }}>
               💡 {q.fact}
+            </p>
+          </div>
+        )}
+
+        {/* Share Results */}
+        {showResult && current + 1 >= questions.length && (
+          <div style={{ marginTop: "20px" }}>
+            <p style={{ color: C.dim, fontSize: "12px", textAlign: "center", marginBottom: "12px" }}>
+              Share your results! 🎉
+            </p>
+            <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+              <button onClick={() => shareToWhatsApp(score, questions.length * 20, Math.round((score / (questions.length * 20)) * 100), category.name, answers.filter(a => a.correct).length, answers.length)}
+                style={{ padding: "10px 16px", borderRadius: "12px", border: "none", background: "#25D366", color: "white", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
+                aria-label="Share on WhatsApp"
+              >
+                📱 WhatsApp
+              </button>
+              <button onClick={() => shareResults(score, questions.length * 20, Math.round((score / (questions.length * 20)) * 100), category.name, answers.filter(a => a.correct).length, answers.length)}
+                style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid rgba(201,168,76,0.3)", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
+                aria-label="Share results"
+              >
+                🔗 Share
+              </button>
+              <button onClick={() => copyResults(score, questions.length * 20, Math.round((score / (questions.length * 20)) * 100), category.name, answers.filter(a => a.correct).length, answers.length)}
+                style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #2a3a4a", background: "#111827", color: "#8a9ab0", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
+                aria-label="Copy results"
+              >
+                📋 Copy
+              </button>
             </div>
           </div>
         )}
-{/* Share Results */}
-<div style={{ marginTop: "20px" }}>
-  <div style={{ color: C.dim, fontSize: "12px", textAlign: "center", marginBottom: "12px" }}>
-    Share your results! 🎉
-  </div>
-  <div style={{ display: "flex", gap: "8px", justifyContent: "center" }}>
-    <button onClick={() => shareToWhatsApp(score, totalPossible, percentage, category.name, correctCount, answers.length)}
-      style={{ padding: "10px 16px", borderRadius: "12px", border: "none", background: "#25D366", color: "white", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
-      📱 WhatsApp
-    </button>
-    <button onClick={() => shareResults(score, totalPossible, percentage, category.name, correctCount, answers.length)}
-      style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid rgba(201,168,76,0.3)", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
-      🔗 Share
-    </button>
-    <button onClick={() => copyResults(score, totalPossible, percentage, category.name, correctCount, answers.length)}
-      style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #2a3a4a", background: "#111827", color: "#8a9ab0", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}>
-      📋 Copy
-    </button>
-  </div>
-</div>
+
         {/* Next Button */}
         {showResult && (
           <button
@@ -492,13 +570,11 @@ function QuizScreen({ category, onBack, onComplete }) {
               boxShadow: `0 4px 20px ${category.color}44`, animation: "fadeUp 0.3s ease",
               transition: "transform 0.2s",
             }}
-            onMouseEnter={e => e.currentTarget.style.transform = "scale(1.02)"}
-            onMouseLeave={e => e.currentTarget.style.transform = "scale(1)"}
           >
             {current + 1 >= questions.length ? "🎉 Results Dekhein" : "Agla Sawaal →"}
           </button>
         )}
-      </div>
+      </main>
 
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(12px); } to { opacity:1; transform:translateY(0); } }
@@ -508,8 +584,8 @@ function QuizScreen({ category, onBack, onComplete }) {
   );
 }
 
-// ─── Results Screen ────────────────────────────────────────────────────
-function ResultsScreen({ score, totalPossible, answers, bestStreak, category, onBack, onRetry }) {
+// ─── Results Screen (Inline for immediate use, can be lazy loaded) ───
+function ResultsScreenInline({ score, totalPossible, answers, bestStreak, category, onBack, onRetry }) {
   const percentage = Math.round((score / totalPossible) * 100);
   const correctCount = answers.filter(a => a.correct).length;
   const isPerfect = percentage === 100;
@@ -524,7 +600,7 @@ function ResultsScreen({ score, totalPossible, answers, bestStreak, category, on
         borderBottom: "1px solid rgba(201,168,76,0.1)", padding: "40px 20px",
         textAlign: "center",
       }}>
-        <div style={{ fontSize: "48px", marginBottom: "12px" }}>
+        <div style={{ fontSize: "48px", marginBottom: "12px" }} aria-hidden="true">
           {isPerfect ? "🏆" : isGood ? "🌟" : "💪"}
         </div>
         <h1 style={{ fontSize: "24px", fontWeight: "800", margin: "0 0 8px" }}>
@@ -557,9 +633,9 @@ function ResultsScreen({ score, totalPossible, answers, bestStreak, category, on
 
       {/* Review Answers */}
       <div style={{ maxWidth: "600px", margin: "0 auto", padding: "24px 20px 40px" }}>
-        <div style={{ color: C.dim, fontSize: "12px", letterSpacing: "2px", marginBottom: "16px", textTransform: "uppercase", fontWeight: "600" }}>
+        <h2 style={{ color: C.dim, fontSize: "12px", letterSpacing: "2px", marginBottom: "16px", textTransform: "uppercase", fontWeight: "600" }}>
           Review Answers
-        </div>
+        </h2>
 
         {answers.map((a, i) => (
           <div
@@ -571,23 +647,47 @@ function ResultsScreen({ score, totalPossible, answers, bestStreak, category, on
             }}
           >
             <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-              <span style={{ fontSize: "18px", flexShrink: 0, marginTop: "2px" }}>
+              <span style={{ fontSize: "18px", flexShrink: 0, marginTop: "2px" }} aria-hidden="true">
                 {a.correct ? "✅" : "❌"}
               </span>
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: "14px", fontWeight: "600", marginBottom: "4px", lineHeight: "1.5" }}>
+                <h3 style={{ fontSize: "14px", fontWeight: "600", marginBottom: "4px", lineHeight: "1.5" }}>
                   {i + 1}. {a.question}
-                </div>
-                <div style={{ color: C.dim, fontSize: "12px", lineHeight: "1.6" }}>
+                </h3>
+                <p style={{ color: C.dim, fontSize: "12px", lineHeight: "1.6" }}>
                   💡 {a.fact}
-                </div>
+                </p>
               </div>
             </div>
           </div>
         ))}
 
+        {/* Share on Results */}
+        <div style={{ marginTop: "20px", marginBottom: "24px" }}>
+          <p style={{ color: C.dim, fontSize: "12px", textAlign: "center", marginBottom: "12px" }}>
+            Share your achievement! 🎉
+          </p>
+          <div style={{ display: "flex", gap: "8px", justifyContent: "center", flexWrap: "wrap" }}>
+            <button onClick={() => shareToWhatsApp(score, totalPossible, percentage, category.name, correctCount, answers.length)}
+              style={{ padding: "10px 16px", borderRadius: "12px", border: "none", background: "#25D366", color: "white", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
+            >
+              📱 WhatsApp
+            </button>
+            <button onClick={() => shareResults(score, totalPossible, percentage, category.name, correctCount, answers.length)}
+              style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid rgba(201,168,76,0.3)", background: "rgba(201,168,76,0.1)", color: "#C9A84C", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
+            >
+              🔗 Share
+            </button>
+            <button onClick={() => copyResults(score, totalPossible, percentage, category.name, correctCount, answers.length)}
+              style={{ padding: "10px 16px", borderRadius: "12px", border: "1px solid #2a3a4a", background: "#111827", color: "#8a9ab0", fontSize: "13px", fontWeight: "700", cursor: "pointer" }}
+            >
+              📋 Copy
+            </button>
+          </div>
+        </div>
+
         {/* Action Buttons */}
-        <div style={{ display: "flex", gap: "10px", marginTop: "24px" }}>
+        <div style={{ display: "flex", gap: "10px" }}>
           <button
             onClick={onBack}
             style={{
@@ -619,13 +719,13 @@ function ResultsScreen({ score, totalPossible, answers, bestStreak, category, on
   );
 }
 
-// ─── Leaderboard ──────────────────────────────────────────────────────
-function Leaderboard({ scores, onBack }) {
+// ─── Leaderboard (Inline for immediate use) ───────────────────────────
+function LeaderboardInline({ scores, onBack }) {
   const sorted = [...scores].sort((a, b) => b.score - a.score).slice(0, 10);
 
   return (
     <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "system-ui, sans-serif" }}>
-      <div style={{
+      <header style={{
         background: "linear-gradient(180deg, #111820, #0a0f1a)",
         borderBottom: "1px solid rgba(201,168,76,0.1)", padding: "24px 20px",
         position: "sticky", top: 0, zIndex: 10,
@@ -634,17 +734,18 @@ function Leaderboard({ scores, onBack }) {
           <button
             onClick={onBack}
             style={{ background: "transparent", border: "1px solid #2a3a4a", color: C.dim, borderRadius: "10px", padding: "8px 14px", cursor: "pointer", fontSize: "13px" }}
+            aria-label="Go back"
           >
             ← Back
           </button>
-          <div style={{ fontSize: "18px", fontWeight: "800" }}>🏆 Leaderboard</div>
+          <h1 style={{ fontSize: "18px", fontWeight: "800" }}>🏆 Leaderboard</h1>
         </div>
-      </div>
+      </header>
 
-      <div style={{ maxWidth: "500px", margin: "0 auto", padding: "24px 20px" }}>
+      <main style={{ maxWidth: "500px", margin: "0 auto", padding: "24px 20px" }}>
         {sorted.length === 0 ? (
           <div style={{ textAlign: "center", padding: "60px 20px", color: C.dim }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>📊</div>
+            <div style={{ fontSize: "40px", marginBottom: "12px" }} aria-hidden="true">📊</div>
             <p>Abhi tak koi quiz nahi kheli gayi!</p>
           </div>
         ) : (
@@ -664,7 +765,7 @@ function Leaderboard({ scores, onBack }) {
                 display: "flex", alignItems: "center", justifyContent: "center",
                 fontSize: "14px", fontWeight: "800",
                 color: i === 0 ? C.gold : i === 1 ? C.dim : i === 2 ? C.orange : C.dim,
-              }}>
+              }} aria-label={`Rank ${i + 1}`}>
                 {i === 0 ? "🥇" : i === 1 ? "🥈" : i === 2 ? "🥉" : i + 1}
               </div>
               <div style={{ flex: 1 }}>
@@ -678,7 +779,7 @@ function Leaderboard({ scores, onBack }) {
             </div>
           ))
         )}
-      </div>
+      </main>
 
       <style>{`
         @keyframes fadeUp { from { opacity:0; transform:translateY(10px); } to { opacity:1; transform:translateY(0); } }
@@ -689,7 +790,7 @@ function Leaderboard({ scores, onBack }) {
 
 // ─── Main Component ────────────────────────────────────────────────────
 export default function IslamicQuiz() {
-  const [screen, setScreen] = useState("home"); // home, quiz, results, leaderboard
+  const [screen, setScreen] = useState("home");
   const [selectedCategory, setSelectedCategory] = useState(null);
   const [quizScore, setQuizScore] = useState(0);
   const [quizAnswers, setQuizAnswers] = useState([]);
@@ -701,17 +802,17 @@ export default function IslamicQuiz() {
     try { return JSON.parse(localStorage.getItem("islamic_quiz_best") || "{}"); } catch { return {}; }
   });
 
-  const startQuiz = (cat) => {
+  const startQuiz = useCallback((cat) => {
     setSelectedCategory(cat);
     setScreen("quiz");
-  };
+  }, []);
 
-  const completeQuiz = (score, answers, bestStreak) => {
+  const completeQuiz = useCallback((score, answers, bestStreak) => {
     setQuizScore(score);
     setQuizAnswers(answers);
     setQuizStreak(bestStreak);
 
-    const totalPossible = answers.length * 20; // max 20 per question with streak bonus
+    const totalPossible = answers.length * 20;
     const percentage = Math.round((score / totalPossible) * 100);
 
     const newScore = {
@@ -726,7 +827,6 @@ export default function IslamicQuiz() {
     setScores(updatedScores);
     localStorage.setItem("islamic_quiz_scores", JSON.stringify(updatedScores));
 
-    // Update best score for category
     const currentBest = bestScores[selectedCategory.id] || 0;
     if (percentage > currentBest) {
       const updatedBest = { ...bestScores, [selectedCategory.id]: percentage };
@@ -735,147 +835,149 @@ export default function IslamicQuiz() {
     }
 
     setScreen("results");
-  };
+  }, [selectedCategory, scores, bestScores]);
 
-  const retryQuiz = () => {
+  const retryQuiz = useCallback(() => {
     setScreen("quiz");
-  };
-const shareResults = async (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
-    const message = `🧠 *Islamic Quiz Results* 🧠\n\n` +
-      `📚 Category: *${categoryName}*\n` +
-      `⭐ Score: *${score} / ${totalPossible}*\n` +
-      `📊 Percentage: *${percentage}%*\n` +
-      `✅ Correct: *${correctCount} / ${totalQuestions}*\n\n` +
-      `Test your Islamic knowledge too! 🌙`;
+  }, []);
 
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: 'Islamic Quiz Results',
-          text: message.replace(/\*/g, ''),
-          url: window.location.href,
-        });
-        return;
-      } catch (err) {}
-    }
-    const whatsappUrl = `https://wa.me/?text=${encodeURIComponent(message)}`;
-    window.open(whatsappUrl, '_blank');
-  };
-
-  const shareToWhatsApp = (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
-    const message = `🧠 *Islamic Quiz Results* 🧠%0A%0A` +
-      `📚 Category: *${categoryName}*%0A` +
-      `⭐ Score: *${score} / ${totalPossible}*%0A` +
-      `📊 Percentage: *${percentage}%*%0A` +
-      `✅ Correct: *${correctCount} / ${totalQuestions}*%0A%0A` +
-      `Test your Islamic knowledge too! 🌙`;
-    window.open(`https://wa.me/?text=${message}`, '_blank');
-  };
-
-  const copyResults = (score, totalPossible, percentage, categoryName, correctCount, totalQuestions) => {
-    const text = `🧠 Islamic Quiz Results 🧠\n\n` +
-      `📚 Category: ${categoryName}\n` +
-      `⭐ Score: ${score} / ${totalPossible}\n` +
-      `📊 Percentage: ${percentage}%\n` +
-      `✅ Correct: ${correctCount} / ${totalQuestions}\n\n` +
-      `Test your Islamic knowledge too! 🌙`;
-    navigator.clipboard.writeText(text).then(() => {
-      alert('Results copied to clipboard! 📋');
-    });
-  };
   const totalQuizzes = scores.length;
   const totalScore = scores.reduce((a, b) => a + b.score, 0);
+  const structuredData = React.useMemo(() => generateQuizStructuredData(QUIZ_CATEGORIES), []);
 
   return (
-    <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "system-ui, sans-serif" }}>
-      {screen === "home" && (
-        <div>
-          {/* Hero */}
-          <div style={{
-            background: "linear-gradient(135deg, #111827, #0a0f1a)",
-            borderBottom: "1px solid rgba(201,168,76,0.1)", padding: "32px 20px 24px",
-            textAlign: "center", position: "relative", overflow: "hidden",
-          }}>
-            <div style={{
-              position: "absolute", top: "-50%", left: "-50%", width: "200%", height: "200%",
-              background: "radial-gradient(circle at 50% 50%, rgba(201,168,76,0.06) 0%, transparent 50%)",
-              pointerEvents: "none",
-            }} />
-            <div style={{ position: "relative", zIndex: 1 }}>
-              <div style={{ fontSize: "44px", marginBottom: "8px" }}>🧠</div>
-              <h1 style={{
-                fontSize: "26px", fontWeight: "800", margin: "0 0 6px",
-                background: `linear-gradient(90deg, ${C.gold}, ${C.orange})`,
-                WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
-              }}>
-                Islamic Quiz
-              </h1>
-              <p style={{ color: C.dim, fontSize: "13px", margin: "0 0 16px" }}>
-                Apni Islamic knowledge test karein! 🌟
-              </p>
+    <HelmetProvider>
+      <Helmet>
+        {/* Primary Meta Tags */}
+        <title>Islamic Quiz - Test Your Knowledge | Quran, Prophets, Seerah</title>
+        <meta name="title" content="Islamic Quiz - Test Your Knowledge | Quran, Prophets, Seerah" />
+        <meta name="description" content="Test your Islamic knowledge with fun quizzes on Quran, Prophets, 5 Pillars of Islam, Duas, Seerah, and General Islamic topics. Free Islamic quiz for kids and adults in Hindi/Urdu/English." />
+        <meta name="keywords" content="Islamic quiz, Quran quiz, Prophet quiz, Islamic knowledge test, Islamic trivia, 5 pillars quiz, Seerah quiz, Islamic quiz for kids, Hindi Islamic quiz, Urdu Islamic quiz" />
+        <meta name="author" content="Islamic Quiz App" />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content="English, Hindi, Urdu" />
+        <meta name="revisit-after" content="7 days" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://soulayah.com/islamic-quiz" />
+        <meta property="og:title" content="Islamic Quiz - Test Your Knowledge" />
+        <meta property="og:description" content="Test your Islamic knowledge with quizzes on Quran, Prophets, 5 Pillars, Duas, and Seerah. Play now!" />
+        <meta property="og:image" content="https://soulayah.com/quiz-og-image.jpg" />
+        <meta property="og:site_name" content="Islamic Quiz" />
+        
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://soulayah.com/islamic-quiz" />
+        <meta property="twitter:title" content="Islamic Quiz - Test Your Knowledge" />
+        <meta property="twitter:description" content="Test your Islamic knowledge with quizzes on Quran, Prophets, 5 Pillars, Duas, and Seerah. Play now!" />
+        <meta property="twitter:image" content="https://soulayah.com/quiz-og-image.jpg" />
+        
+        {/* Canonical URL */}
+        <link rel="canonical" href="https://soulayah.com/islamic-quiz" />
+        
+        {/* Preconnect */}
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="dns-prefetch" href="https://fonts.googleapis.com" />
+        
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
 
-              {/* Stats */}
-              <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
-                <div style={{ background: C.card, borderRadius: "12px", padding: "10px 18px", border: "1px solid #2a3a4a" }}>
-                  <div style={{ color: C.gold, fontSize: "18px", fontWeight: "800" }}>{totalQuizzes}</div>
-                  <div style={{ color: C.dim, fontSize: "10px" }}>Quizzes</div>
-                </div>
-                <div style={{ background: C.card, borderRadius: "12px", padding: "10px 18px", border: "1px solid #2a3a4a" }}>
-                  <div style={{ color: C.green, fontSize: "18px", fontWeight: "800" }}>{totalScore}</div>
-                  <div style={{ color: C.dim, fontSize: "10px" }}>Total Score</div>
-                </div>
-                <div style={{ background: C.card, borderRadius: "12px", padding: "10px 18px", border: "1px solid #2a3a4a", cursor: "pointer" }}
-                  onClick={() => setScreen("leaderboard")}
-                >
-                  <div style={{ color: C.blue, fontSize: "18px", fontWeight: "800" }}>🏆</div>
-                  <div style={{ color: C.dim, fontSize: "10px" }}>Leaderboard</div>
+      <div style={{ minHeight: "100vh", background: C.bg, color: C.text, fontFamily: "system-ui, sans-serif" }}>
+        {screen === "home" && (
+          <div>
+            {/* Hero */}
+            <header style={{
+              background: "linear-gradient(135deg, #111827, #0a0f1a)",
+              borderBottom: "1px solid rgba(201,168,76,0.1)", padding: "32px 20px 24px",
+              textAlign: "center", position: "relative", overflow: "hidden",
+            }}>
+              <div style={{
+                position: "absolute", top: "-50%", left: "-50%", width: "200%", height: "200%",
+                background: "radial-gradient(circle at 50% 50%, rgba(201,168,76,0.06) 0%, transparent 50%)",
+                pointerEvents: "none",
+              }} />
+              <div style={{ position: "relative", zIndex: 1 }}>
+                <div style={{ fontSize: "44px", marginBottom: "8px" }} aria-hidden="true">🧠</div>
+                <h1 style={{
+                  fontSize: "26px", fontWeight: "800", margin: "0 0 6px",
+                  background: `linear-gradient(90deg, ${C.gold}, ${C.orange})`,
+                  WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent",
+                }}>
+                  Islamic Quiz
+                </h1>
+                <p style={{ color: C.dim, fontSize: "13px", margin: "0 0 16px" }}>
+                  Apni Islamic knowledge test karein! 🌟
+                </p>
+
+                {/* Stats */}
+                <div style={{ display: "flex", justifyContent: "center", gap: "16px", flexWrap: "wrap" }}>
+                  <div style={{ background: C.card, borderRadius: "12px", padding: "10px 18px", border: "1px solid #2a3a4a" }}>
+                    <div style={{ color: C.gold, fontSize: "18px", fontWeight: "800" }}>{totalQuizzes}</div>
+                    <div style={{ color: C.dim, fontSize: "10px" }}>Quizzes</div>
+                  </div>
+                  <div style={{ background: C.card, borderRadius: "12px", padding: "10px 18px", border: "1px solid #2a3a4a" }}>
+                    <div style={{ color: C.green, fontSize: "18px", fontWeight: "800" }}>{totalScore}</div>
+                    <div style={{ color: C.dim, fontSize: "10px" }}>Total Score</div>
+                  </div>
+                  <button 
+                    style={{ background: C.card, borderRadius: "12px", padding: "10px 18px", border: "1px solid #2a3a4a", cursor: "pointer" }}
+                    onClick={() => setScreen("leaderboard")}
+                    aria-label="View leaderboard"
+                  >
+                    <div style={{ color: C.blue, fontSize: "18px", fontWeight: "800" }}>🏆</div>
+                    <div style={{ color: C.dim, fontSize: "10px" }}>Leaderboard</div>
+                  </button>
                 </div>
               </div>
-            </div>
+            </header>
+
+            {/* Categories Grid */}
+            <main style={{ maxWidth: "640px", margin: "0 auto", padding: "24px 20px 40px" }}>
+              <h2 style={{ color: C.dim, fontSize: "12px", letterSpacing: "2px", marginBottom: "16px", textTransform: "uppercase", fontWeight: "600" }}>
+                Choose Category
+              </h2>
+              <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
+                {QUIZ_CATEGORIES.map((cat) => (
+                  <CategoryCard
+                    key={cat.id}
+                    cat={cat}
+                    bestScore={bestScores[cat.id] || 0}
+                    onClick={() => startQuiz(cat)}
+                  />
+                ))}
+              </div>
+            </main>
           </div>
+        )}
 
-          {/* Categories Grid */}
-          <div style={{ maxWidth: "640px", margin: "0 auto", padding: "24px 20px 40px" }}>
-            <div style={{ color: C.dim, fontSize: "12px", letterSpacing: "2px", marginBottom: "16px", textTransform: "uppercase", fontWeight: "600" }}>
-              Choose Category
-            </div>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: "12px" }}>
-              {QUIZ_CATEGORIES.map((cat) => (
-                <CategoryCard
-                  key={cat.id}
-                  cat={cat}
-                  bestScore={bestScores[cat.id] || 0}
-                  onClick={() => startQuiz(cat)}
-                />
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
+        {screen === "quiz" && selectedCategory && (
+          <QuizScreen
+            category={selectedCategory}
+            onBack={() => setScreen("home")}
+            onComplete={completeQuiz}
+          />
+        )}
 
-      {screen === "quiz" && selectedCategory && (
-        <QuizScreen
-          category={selectedCategory}
-          onBack={() => setScreen("home")}
-          onComplete={completeQuiz}
-        />
-      )}
+        {screen === "results" && selectedCategory && (
+          <ResultsScreenInline
+            score={quizScore}
+            totalPossible={quizAnswers.length * 20}
+            answers={quizAnswers}
+            bestStreak={quizStreak}
+            category={selectedCategory}
+            onBack={() => setScreen("home")}
+            onRetry={retryQuiz}
+          />
+        )}
 
-      {screen === "results" && selectedCategory && (
-        <ResultsScreen
-          score={quizScore}
-          totalPossible={quizAnswers.length * 20}
-          answers={quizAnswers}
-          bestStreak={quizStreak}
-          category={selectedCategory}
-          onBack={() => setScreen("home")}
-          onRetry={retryQuiz}
-        />
-      )}
-
-      {screen === "leaderboard" && (
-        <Leaderboard scores={scores} onBack={() => setScreen("home")} />
-      )}
-    </div>
+        {screen === "leaderboard" && (
+          <LeaderboardInline scores={scores} onBack={() => setScreen("home")} />
+        )}
+      </div>
+    </HelmetProvider>
   );
 }

@@ -5,7 +5,62 @@
     <meta name="google-site-verification" content="FJRAg3b3wVyQmcU_Qvs_FAffMRsOooYZbEpborZkkU0" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>vite-project</title>
+
+    <!-- ── Primary SEO (fallback jab React render na ho) ── -->
+    <title>SoulAyah — Quran, Duas, Prayer Times & Islamic App</title>
+    <meta name="description" content="Read Quran with translation, find duas by mood, get prayer times, explore Islamic stories for kids, and learn Arabic — your complete free Islamic companion app." />
+    <meta name="robots" content="index, follow" />
+    <meta name="theme-color" content="#C9A84C" />
+
+    <!-- ── Open Graph ── -->
+    <meta property="og:type" content="website" />
+    <meta property="og:site_name" content="Soulayah" />
+    <meta property="og:title" content="Soulayah — Quran, Duas & Islamic App" />
+    <meta property="og:description" content="Read Quran, find duas by mood, prayer times, Islamic stories for kids and more. Free forever." />
+    <meta property="og:url" content="https://soulayah.vercel.app" />
+    <meta property="og:image" content="https://soulayah.vercel.app/og-image.png" />
+    <meta property="og:image:width" content="1200" />
+    <meta property="og:image:height" content="630" />
+    <meta property="og:locale" content="en_US" />
+
+    <!-- ── Twitter Card ── -->
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content="Soulayah — Islamic App" />
+    <meta name="twitter:description" content="Read Quran, duas, prayer times & Islamic learning — free forever." />
+    <meta name="twitter:image" content="https://soulayah.vercel.app/og-image.png" />
+
+    <!-- ── Performance: Preconnect to external origins ── -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" crossorigin />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link rel="preconnect" href="https://api.alquran.cloud" />
+    <link rel="preconnect" href="https://api.aladhan.com" />
+    <link rel="preconnect" href="https://i.ytimg.com" />
+    <link rel="dns-prefetch" href="https://cdn.islamic.network" />
+    <link rel="dns-prefetch" href="https://translate.google.com" />
+
+    <!-- ── Web App Manifest ── -->
+    <link rel="manifest" href="/manifest.json" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="Noor Al-Quran" />
+
+    <!-- ── Site-wide JSON-LD (WebSite + SearchAction) ── -->
+    <script type="application/ld+json">
+    {
+      "@context": "https://schema.org",
+      "@type": "WebSite",
+      "name": "SoulAyah",
+      "url": "https://soulayah.vercel.app",
+      "description": "Free Islamic app for Quran reading, duas, prayer times, Islamic learning and more.",
+      "inLanguage": ["en", "ur", "ar", "hi"],
+      "potentialAction": {
+        "@type": "SearchAction",
+        "target": "https://soulayah.vercel.app/reader?q={search_term_string}",
+        "query-input": "required name=search_term_string"
+      }
+    }
+    </script>
   </head>
   <body>
     <div id="root"></div>

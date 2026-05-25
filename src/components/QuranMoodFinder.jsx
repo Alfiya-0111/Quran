@@ -1,20 +1,12 @@
-import { useState } from "react";
+import { useState, useCallback, useMemo } from "react";
+import { Helmet } from "react-helmet-async";
 import {
-  FiAlertCircle,
-  FiCloudRain,
-  FiMoon,
-  FiStar,
-  FiZap,
-  FiWifi,
-  FiCompass,
-  FiEyeOff,
-  FiChevronDown,
-  FiChevronUp,
-  FiArrowLeft,
+  FiAlertCircle, FiCloudRain, FiMoon, FiStar, FiZap,
+  FiWifi, FiCompass, FiEyeOff, FiChevronDown, FiChevronUp, FiArrowLeft,
 } from "react-icons/fi";
-import { RiHeartLine } from "react-icons/ri";
 import { TbBulb } from "react-icons/tb";
 
+// ✅ Moved OUTSIDE component — not recreated on every render
 const moods = [
   { id: "anxious",  label: "پریشان ہوں",    Icon: FiAlertCircle, english: "Anxious / Worried",   color: "#6B7FD7" },
   { id: "sad",      label: "اداس ہوں",       Icon: FiCloudRain,   english: "Sad / Heartbroken",   color: "#7E6FAB" },
@@ -49,8 +41,8 @@ const MOOD_AYAHS = {
   ],
   sad: [
     {
-      arabic: "وَلَا تَيْأَسُوا مِن رَّوْحِ اللَّهِ إِنَّهُ لَا يَيْأَسُ مِن رَّوْحِ اللَّهِ إِلَّا الْقَوْمُ الْكَافِرُونَ",
-      translation: "Aur Allah ki rahmat se mayoos mat ho. Allah ki rahmat se sirf kaafir hi mayoos hote hain.",
+      arabic: "وَلَا تَيْأَسُوا مِن رَّوْحِ اللَّهِ",
+      translation: "Aur Allah ki rahmat se mayoos mat ho.",
       surah: "Yusuf", ayahNumber: 87,
       reflection: "Udaasi mein bhi umeed rakho — Allah ka raham hamesha maujood hai.",
     },
@@ -69,8 +61,8 @@ const MOOD_AYAHS = {
   ],
   hopeless: [
     {
-      arabic: "قُلْ يَا عِبَادِيَ الَّذِينَ أَسْرَفُوا عَلَىٰ أَنفُسِهِمْ لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
-      translation: "Keh do: Aey mere bando jo apne aap pe zulm kar chuke hain, Allah ki rahmat se mayoos mat ho.",
+      arabic: "لَا تَقْنَطُوا مِن رَّحْمَةِ اللَّهِ",
+      translation: "Allah ki rahmat se mayoos mat ho.",
       surah: "Az-Zumar", ayahNumber: 53,
       reflection: "Chahe kitna bhi bura kiya ho — Allah ki rahmat sab se badi hai. Wapas aa jao.",
     },
@@ -101,18 +93,18 @@ const MOOD_AYAHS = {
       reflection: "Har cheez jo hai — sehat, ghar, rishte — sab Allah ka inaam hai. Shukar ada karo.",
     },
     {
-      arabic: "فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي وَلَا تَكْفُرُونِ",
-      translation: "Tum mujhe yaad karo, main tumhe yaad karunga. Aur mera shukar karo, nakhusgiri mat karo.",
+      arabic: "فَاذْكُرُونِي أَذْكُرْكُمْ وَاشْكُرُوا لِي",
+      translation: "Tum mujhe yaad karo, main tumhe yaad karunga. Aur mera shukar karo.",
       surah: "Al-Baqarah", ayahNumber: 152,
       reflection: "Zikr aur shukar — yeh do cheezein Allah se qareeb karti hain.",
     },
   ],
   angry: [
     {
-      arabic: "وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ وَاللَّهُ يُحِبُّ الْمُحْسِنِينَ",
-      translation: "Aur woh jo gusse ko pee jaate hain aur logon ko maaf kar dete hain. Allah neki karne walon se muhabbat karta hai.",
+      arabic: "وَالْكَاظِمِينَ الْغَيْظَ وَالْعَافِينَ عَنِ النَّاسِ",
+      translation: "Aur woh jo gusse ko pee jaate hain aur logon ko maaf kar dete hain.",
       surah: "Aali Imran", ayahNumber: 134,
-      reflection: "Gussa pee lena — yeh kamzori nahi, balki Allah ko pasand hai. Maafi dena sabse bada hua.",
+      reflection: "Gussa pee lena — yeh kamzori nahi, balki Allah ko pasand hai.",
     },
     {
       arabic: "خُذِ الْعَفْوَ وَأْمُرْ بِالْعُرْفِ وَأَعْرِضْ عَنِ الْجَاهِلِينَ",
@@ -135,8 +127,8 @@ const MOOD_AYAHS = {
       reflection: "Tum kabhi akele nahi — Allah hamesha saath hai, har jagah, har waqt.",
     },
     {
-      arabic: "وَإِذَا سَأَلَكَ عِبَادِي عَنِّي فَإِنِّي قَرِيبٌ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
-      translation: "Jab mere bande mujhse mere baare mein puchain, main qareeb hoon. Duaa karne wale ki duaa sunta hoon.",
+      arabic: "فَإِنِّي قَرِيبٌ أُجِيبُ دَعْوَةَ الدَّاعِ إِذَا دَعَانِ",
+      translation: "Main qareeb hoon. Duaa karne wale ki duaa sunta hoon.",
       surah: "Al-Baqarah", ayahNumber: 186,
       reflection: "Allah door nahi — seedha baat karo, woh sunta hai. Duaa karo abhi.",
     },
@@ -189,203 +181,314 @@ const MOOD_AYAHS = {
   ],
 };
 
+// ✅ Memoized helper — component ke bahar
+function hexToRgb(hex) {
+  if (!hex) return "201,168,76";
+  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+  return result
+    ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}`
+    : "201,168,76";
+}
+
+// ✅ CSS-based hover — inline onMouseEnter se better performance
+const styles = `
+  .mood-btn { transition: all 0.3s ease; }
+  .mood-btn:hover { transform: translateY(-2px); }
+  .back-btn:hover { background: rgba(201,168,76,0.1) !important; }
+  .ayah-card { transition: all 0.4s ease; }
+`;
+
 export default function QuranMoodFinder() {
   const [selectedMood, setSelectedMood] = useState(null);
   const [activeCard, setActiveCard] = useState(null);
 
-  const ayahs = selectedMood ? MOOD_AYAHS[selectedMood.id] : [];
-  const activeMoodObj = moods.find((m) => m.id === selectedMood?.id);
+  // ✅ useMemo — current mood ka color/icon bar bar recalculate na ho
+  const activeMoodObj = useMemo(
+    () => moods.find((m) => m.id === selectedMood?.id),
+    [selectedMood]
+  );
+
+  const ayahs = useMemo(
+    () => (selectedMood ? MOOD_AYAHS[selectedMood.id] : []),
+    [selectedMood]
+  );
+
+  const accentRgb = useMemo(
+    () => hexToRgb(activeMoodObj?.color),
+    [activeMoodObj]
+  );
+
+  // ✅ useCallback — re-render pe naye functions na banein
+  const handleMoodSelect = useCallback((mood) => {
+    setSelectedMood(mood);
+    setActiveCard(null);
+  }, []);
+
+  const handleCardToggle = useCallback((index) => {
+    setActiveCard((prev) => (prev === index ? null : index));
+  }, []);
+
+  const handleBack = useCallback(() => {
+    setSelectedMood(null);
+    setActiveCard(null);
+  }, []);
 
   return (
-    <div style={{
-      minHeight: "100vh",
-      background: "linear-gradient(135deg, #0a0a0f 0%, #0f1923 50%, #0a0f0a 100%)",
-      fontFamily: "'Georgia', 'Times New Roman', serif",
-      color: "#e8dcc8",
-      position: "relative",
-      overflow: "hidden",
-    }}>
-      <div style={{
-        position: "fixed", top: 0, left: 0, right: 0, bottom: 0, pointerEvents: "none",
-        backgroundImage: `radial-gradient(circle at 20% 20%, rgba(201,168,76,0.05) 0%, transparent 50%),
-          radial-gradient(circle at 80% 80%, rgba(107,127,215,0.05) 0%, transparent 50%)`,
-        zIndex: 0,
-      }} />
+    <>
+      {/* ✅ SEO Helmet */}
+      <Helmet>
+        <html lang="ur" />
+        <title>Quran Dil Ka Dawa — Apni Kaifiyat Ke Mutabiq Ayaat | SoulAyah</title>
+        <meta
+          name="description"
+          content="Apna mood chunein aur Quran ki Ayaat se sukoon paayein. Pareshan, udaas, akela, ya darr ho — Allah ka kalam aapke dil ke liye hai. Free Islamic app."
+        />
+        <meta
+          name="keywords"
+          content="Quran ayaat mood, Islamic comfort, Quranic verses anxiety, Quran sad, Islamic app Urdu, Noor Al-Quran, dil ka sukoon"
+        />
+        <meta name="robots" content="index, follow" />
+        <link rel="canonical" href="https://soulayah.com/mood" />
 
-      <div style={{ position: "relative", zIndex: 1, maxWidth: "720px", margin: "0 auto", padding: "40px 20px 80px" }}>
+        {/* Open Graph */}
+        <meta property="og:type" content="website" />
+        <meta property="og:title" content="Quran Dil Ka Dawa — Noor Al-Quran" />
+        <meta
+          property="og:description"
+          content="Apna mood chunein aur Quran ki Ayaat se sukoon paayein. Free Islamic app."
+        />
+        <meta property="og:url" content="https://soulayah.com/mood" />
+        <meta property="og:locale" content="ur_PK" />
 
-        {/* Header */}
-        <div style={{ textAlign: "center", marginBottom: "48px" }}>
-          <div style={{ fontSize: "42px", marginBottom: "8px", letterSpacing: "8px", color: "#C9A84C", opacity: 0.9 }}>
-            ﷽
-          </div>
-          <h1 style={{ fontSize: "28px", fontWeight: "400", letterSpacing: "2px", color: "#e8dcc8", margin: "0 0 8px", textShadow: "0 0 40px rgba(201,168,76,0.3)" }}>
-            Quran — Dil Ka Dawa
-          </h1>
-          <p style={{ color: "#8a7a6a", fontSize: "14px", letterSpacing: "1px", margin: 0 }}>
-            قرآن دل کا دوا • Apni Kaifiyat Batao
-          </p>
-          <div style={{ width: "60px", height: "1px", background: "linear-gradient(90deg, transparent, #C9A84C, transparent)", margin: "20px auto 0" }} />
-        </div>
+        {/* Twitter */}
+        <meta name="twitter:card" content="summary" />
+        <meta name="twitter:title" content="Quran Dil Ka Dawa — Noor Al-Quran" />
+        <meta
+          name="twitter:description"
+          content="Apna mood chunein aur Quran ki Ayaat se sukoon paayein."
+        />
 
-        {/* Mood Selection */}
-        {!selectedMood && (
-          <div>
-            <p style={{ textAlign: "center", color: "#a09080", marginBottom: "32px", fontSize: "15px" }}>
-              Abhi aap kaisa mehsoos kar rahe hain?
+        {/* ✅ Font preload hint */}
+        <link
+          rel="preconnect"
+          href="https://fonts.googleapis.com"
+          crossOrigin="anonymous"
+        />
+
+        {/* ✅ JSON-LD schema */}
+        <script type="application/ld+json">{JSON.stringify({
+          "@context": "https://schema.org",
+          "@type": "WebApplication",
+          "name": "Quran Dil Ka Dawa",
+          "description": "Quran ki Ayaat se mood ke mutabiq sukoon paayein",
+          "url": "https://soulayah.com/mood",
+          "applicationCategory": "ReligiousApplication",
+          "inLanguage": ["ur", "ar"],
+          "isAccessibleForFree": true,
+          "offers": { "@type": "Offer", "price": "0" },
+        })}</script>
+      </Helmet>
+
+      <style>{styles}</style>
+
+      <main
+        style={{
+          minHeight: "100vh",
+          background: "linear-gradient(135deg, #0a0a0f 0%, #0f1923 50%, #0a0f0a 100%)",
+          fontFamily: "'Georgia', 'Times New Roman', serif",
+          color: "#e8dcc8",
+        }}
+      >
+        <div
+          style={{
+            position: "fixed", top: 0, left: 0, right: 0, bottom: 0,
+            pointerEvents: "none",
+            backgroundImage: `radial-gradient(circle at 20% 20%, rgba(201,168,76,0.05) 0%, transparent 50%),
+              radial-gradient(circle at 80% 80%, rgba(107,127,215,0.05) 0%, transparent 50%)`,
+            zIndex: 0,
+          }}
+          aria-hidden="true"
+        />
+
+        <div style={{ position: "relative", zIndex: 1, maxWidth: "720px", margin: "0 auto", padding: "40px 20px 80px" }}>
+
+          {/* ✅ Semantic header */}
+          <header style={{ textAlign: "center", marginBottom: "48px" }}>
+            <div
+              style={{ fontSize: "42px", marginBottom: "8px", letterSpacing: "8px", color: "#C9A84C", opacity: 0.9 }}
+              aria-hidden="true"
+            >
+              ﷽
+            </div>
+            <h1 style={{ fontSize: "28px", fontWeight: "400", letterSpacing: "2px", color: "#e8dcc8", margin: "0 0 8px", textShadow: "0 0 40px rgba(201,168,76,0.3)" }}>
+              Quran — Dil Ka Dawa
+            </h1>
+            <p
+              lang="ur"
+              style={{ color: "#8a7a6a", fontSize: "14px", letterSpacing: "1px", margin: 0 }}
+            >
+              قرآن دل کا دوا • Apni Kaifiyat Batao
             </p>
-            <div style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}>
-              {moods.map((mood) => (
-                <button
-                  key={mood.id}
-                  onClick={() => { setSelectedMood(mood); setActiveCard(null); }}
+            <div
+              style={{ width: "60px", height: "1px", background: "linear-gradient(90deg, transparent, #C9A84C, transparent)", margin: "20px auto 0" }}
+              aria-hidden="true"
+            />
+          </header>
+
+          {/* Mood Selection */}
+          {!selectedMood && (
+            <section aria-label="Mood selection">
+              <p style={{ textAlign: "center", color: "#a09080", marginBottom: "32px", fontSize: "15px" }}>
+                Abhi aap kaisa mehsoos kar rahe hain?
+              </p>
+              <div
+                role="list"
+                style={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: "14px" }}
+              >
+                {moods.map((mood) => (
+                  <button
+                    key={mood.id}
+                    role="listitem"
+                    className="mood-btn"
+                    onClick={() => handleMoodSelect(mood)}
+                    aria-label={`${mood.english} — ${mood.label}`}
+                    style={{
+                      background: "rgba(255,255,255,0.03)",
+                      border: "1px solid rgba(255,255,255,0.08)",
+                      borderRadius: "16px", padding: "20px 16px",
+                      cursor: "pointer", textAlign: "center", color: "#e8dcc8",
+                      backdropFilter: "blur(10px)",
+                      // ✅ CSS hover handles via .mood-btn class
+                    }}
+                  >
+                    <div style={{
+                      width: "48px", height: "48px", margin: "0 auto 10px",
+                      background: `rgba(${hexToRgb(mood.color)}, 0.12)`,
+                      border: `1px solid rgba(${hexToRgb(mood.color)}, 0.3)`,
+                      borderRadius: "50%",
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                    }}>
+                      <mood.Icon size={22} color={mood.color} aria-hidden="true" />
+                    </div>
+                    <div lang="ur" style={{ fontSize: "17px", fontFamily: "'Noto Nastaliq Urdu', serif", lineHeight: 1.8 }}>
+                      {mood.label}
+                    </div>
+                    <div style={{ fontSize: "11px", color: "#6a5f52", marginTop: "4px", letterSpacing: "0.5px" }}>
+                      {mood.english}
+                    </div>
+                  </button>
+                ))}
+              </div>
+            </section>
+          )}
+
+          {/* Ayahs Section */}
+          {selectedMood && ayahs.length > 0 && (
+            <section aria-label={`Ayaat for mood: ${activeMoodObj?.english}`}>
+              <div style={{ textAlign: "center", marginBottom: "32px" }}>
+                <div
                   style={{
-                    background: "rgba(255,255,255,0.03)",
-                    border: "1px solid rgba(255,255,255,0.08)",
-                    borderRadius: "16px", padding: "20px 16px",
-                    cursor: "pointer", transition: "all 0.3s ease",
-                    textAlign: "center", color: "#e8dcc8",
-                    backdropFilter: "blur(10px)",
-                  }}
-                  onMouseEnter={e => {
-                    e.currentTarget.style.background = `rgba(${hexToRgb(mood.color)}, 0.12)`;
-                    e.currentTarget.style.borderColor = mood.color;
-                    e.currentTarget.style.transform = "translateY(-2px)";
-                    e.currentTarget.style.boxShadow = `0 8px 30px rgba(${hexToRgb(mood.color)}, 0.15)`;
-                  }}
-                  onMouseLeave={e => {
-                    e.currentTarget.style.background = "rgba(255,255,255,0.03)";
-                    e.currentTarget.style.borderColor = "rgba(255,255,255,0.08)";
-                    e.currentTarget.style.transform = "translateY(0)";
-                    e.currentTarget.style.boxShadow = "none";
-                  }}
-                >
-                  {/* React Icon in colored circle */}
-                  <div style={{
-                    width: "48px", height: "48px", margin: "0 auto 10px",
-                    background: `rgba(${hexToRgb(mood.color)}, 0.12)`,
-                    border: `1px solid rgba(${hexToRgb(mood.color)}, 0.3)`,
+                    width: "64px", height: "64px", margin: "0 auto 12px",
+                    background: `rgba(${accentRgb}, 0.12)`,
+                    border: `1px solid rgba(${accentRgb}, 0.35)`,
                     borderRadius: "50%",
                     display: "flex", alignItems: "center", justifyContent: "center",
-                  }}>
-                    <mood.Icon size={22} color={mood.color} />
-                  </div>
-                  <div style={{ fontSize: "17px", fontFamily: "'Noto Nastaliq Urdu', serif", lineHeight: 1.8 }}>
-                    {mood.label}
-                  </div>
-                  <div style={{ fontSize: "11px", color: "#6a5f52", marginTop: "4px", letterSpacing: "0.5px" }}>
-                    {mood.english}
-                  </div>
-                </button>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* Ayahs */}
-        {selectedMood && ayahs.length > 0 && (
-          <div>
-            <div style={{ textAlign: "center", marginBottom: "32px" }}>
-              {/* Large mood icon */}
-              <div style={{
-                width: "64px", height: "64px", margin: "0 auto 12px",
-                background: `rgba(${hexToRgb(activeMoodObj?.color || "#C9A84C")}, 0.12)`,
-                border: `1px solid rgba(${hexToRgb(activeMoodObj?.color || "#C9A84C")}, 0.35)`,
-                borderRadius: "50%",
-                display: "flex", alignItems: "center", justifyContent: "center",
-              }}>
-                {activeMoodObj && <activeMoodObj.Icon size={28} color={activeMoodObj.color} />}
+                  }}
+                  aria-hidden="true"
+                >
+                  {activeMoodObj && <activeMoodObj.Icon size={28} color={activeMoodObj.color} />}
+                </div>
+                <h2 lang="ur" style={{ fontSize: "18px", fontWeight: "400", color: activeMoodObj?.color, margin: "0 0 4px" }}>
+                  {activeMoodObj?.label}
+                </h2>
+                <p style={{ color: "#5a4f42", fontSize: "13px", margin: 0 }}>Allah ka kalam — aapke liye</p>
               </div>
-              <h2 style={{ fontSize: "18px", fontWeight: "400", color: activeMoodObj?.color, margin: "0 0 4px" }}>
-                {activeMoodObj?.label}
-              </h2>
-              <p style={{ color: "#5a4f42", fontSize: "13px", margin: 0 }}>Allah ka kalam — aapke liye</p>
-            </div>
 
-            {ayahs.map((ayah, i) => (
-              <div
-                key={i}
-                onClick={() => setActiveCard(activeCard === i ? null : i)}
-                style={{
-                  background: activeCard === i ? `rgba(${hexToRgb(activeMoodObj?.color || "#C9A84C")}, 0.08)` : "rgba(255,255,255,0.025)",
-                  border: `1px solid ${activeCard === i ? activeMoodObj?.color || "#C9A84C" : "rgba(255,255,255,0.07)"}`,
-                  borderRadius: "20px", padding: "28px 24px",
-                  marginBottom: "16px", cursor: "pointer",
-                  transition: "all 0.4s ease", backdropFilter: "blur(10px)",
-                }}
-              >
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
-                  <div style={{
-                    background: `rgba(${hexToRgb(activeMoodObj?.color || "#C9A84C")}, 0.2)`,
-                    color: activeMoodObj?.color || "#C9A84C",
-                    fontSize: "11px", padding: "4px 12px", borderRadius: "20px",
-                  }}>
-                    {ayah.surah} • Ayah {ayah.ayahNumber}
-                  </div>
-                  {/* Chevron icon */}
-                  <div style={{ color: "#5a5040", display: "flex", alignItems: "center" }}>
-                    {activeCard === i
-                      ? <FiChevronUp size={18} />
-                      : <FiChevronDown size={18} />
-                    }
-                  </div>
-                </div>
-
-                <div style={{
-                  fontSize: "24px", lineHeight: "2.2", textAlign: "right", direction: "rtl",
-                  color: "#e8dcc8", fontFamily: "'Amiri', 'Traditional Arabic', serif",
-                  marginBottom: "16px", padding: "12px 0",
-                  borderBottom: "1px solid rgba(255,255,255,0.06)",
-                }}>
-                  {ayah.arabic}
-                </div>
-
-                <p style={{ color: "#b0a090", fontSize: "14px", lineHeight: "1.8", margin: 0, fontStyle: "italic" }}>
-                  {ayah.translation}
-                </p>
-
-                {activeCard === i && (
-                  <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
-                    <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
-                      <TbBulb size={18} color={activeMoodObj?.color || "#C9A84C"} style={{ flexShrink: 0, marginTop: "2px", opacity: 0.85 }} />
-                      <p style={{ color: activeMoodObj?.color || "#C9A84C", fontSize: "13px", lineHeight: "1.8", margin: 0, opacity: 0.9 }}>
-                        {ayah.reflection}
-                      </p>
+              {ayahs.map((ayah, i) => (
+                <article
+                  key={`${selectedMood.id}-${i}`}
+                  className="ayah-card"
+                  onClick={() => handleCardToggle(i)}
+                  style={{
+                    background: activeCard === i ? `rgba(${accentRgb}, 0.08)` : "rgba(255,255,255,0.025)",
+                    border: `1px solid ${activeCard === i ? activeMoodObj?.color || "#C9A84C" : "rgba(255,255,255,0.07)"}`,
+                    borderRadius: "20px", padding: "28px 24px",
+                    marginBottom: "16px", cursor: "pointer",
+                    backdropFilter: "blur(10px)",
+                  }}
+                  aria-expanded={activeCard === i}
+                >
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "16px" }}>
+                    <div style={{
+                      background: `rgba(${accentRgb}, 0.2)`,
+                      color: activeMoodObj?.color || "#C9A84C",
+                      fontSize: "11px", padding: "4px 12px", borderRadius: "20px",
+                    }}>
+                      <cite>{ayah.surah} • Ayah {ayah.ayahNumber}</cite>
                     </div>
+                    <span aria-hidden="true" style={{ color: "#5a5040", display: "flex", alignItems: "center" }}>
+                      {activeCard === i ? <FiChevronUp size={18} /> : <FiChevronDown size={18} />}
+                    </span>
                   </div>
-                )}
+
+                  {/* ✅ dir="rtl" on Arabic text */}
+                  <p
+                    lang="ar"
+                    dir="rtl"
+                    style={{
+                      fontSize: "24px", lineHeight: "2.2", textAlign: "right",
+                      color: "#e8dcc8", fontFamily: "'Amiri', 'Traditional Arabic', serif",
+                      marginBottom: "16px", padding: "12px 0",
+                      borderBottom: "1px solid rgba(255,255,255,0.06)",
+                      margin: 0,
+                    }}
+                  >
+                    {ayah.arabic}
+                  </p>
+
+                  <p style={{ color: "#b0a090", fontSize: "14px", lineHeight: "1.8", margin: "12px 0 0", fontStyle: "italic" }}>
+                    {ayah.translation}
+                  </p>
+
+                  {activeCard === i && (
+                    <div style={{ marginTop: "16px", paddingTop: "16px", borderTop: "1px solid rgba(255,255,255,0.06)" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "10px" }}>
+                        <TbBulb size={18} color={activeMoodObj?.color || "#C9A84C"} aria-hidden="true" style={{ flexShrink: 0, marginTop: "2px", opacity: 0.85 }} />
+                        <p style={{ color: activeMoodObj?.color || "#C9A84C", fontSize: "13px", lineHeight: "1.8", margin: 0, opacity: 0.9 }}>
+                          {ayah.reflection}
+                        </p>
+                      </div>
+                    </div>
+                  )}
+                </article>
+              ))}
+
+              <div style={{ textAlign: "center", marginTop: "32px" }}>
+                <button
+                  className="back-btn"
+                  onClick={handleBack}
+                  style={{
+                    background: "transparent",
+                    border: "1px solid rgba(201,168,76,0.4)",
+                    color: "#C9A84C", padding: "12px 32px", borderRadius: "30px",
+                    cursor: "pointer", fontSize: "14px", letterSpacing: "1px",
+                    transition: "all 0.3s",
+                    display: "inline-flex", alignItems: "center", gap: "8px",
+                  }}
+                  aria-label="Dusra mood choose karein"
+                >
+                  <FiArrowLeft size={15} aria-hidden="true" /> Dusra Mood Choose Karein
+                </button>
               </div>
-            ))}
+            </section>
+          )}
 
-            <div style={{ textAlign: "center", marginTop: "32px" }}>
-              <button
-                onClick={() => { setSelectedMood(null); setActiveCard(null); }}
-                style={{
-                  background: "transparent", border: "1px solid rgba(201,168,76,0.4)",
-                  color: "#C9A84C", padding: "12px 32px", borderRadius: "30px",
-                  cursor: "pointer", fontSize: "14px", letterSpacing: "1px", transition: "all 0.3s",
-                  display: "inline-flex", alignItems: "center", gap: "8px",
-                }}
-                onMouseEnter={e => { e.currentTarget.style.background = "rgba(201,168,76,0.1)"; }}
-                onMouseLeave={e => { e.currentTarget.style.background = "transparent"; }}
-              >
-                <FiArrowLeft size={15} /> Dusra Mood Choose Karein
-              </button>
-            </div>
-          </div>
-        )}
-
-        <div style={{ textAlign: "center", marginTop: "60px", color: "#3a3028", fontSize: "12px" }}>
-          <p style={{ margin: "0 0 4px" }}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
-          <p style={{ margin: 0 }}>Sadqa-e-Jariya • Free Forever</p>
+          <footer style={{ textAlign: "center", marginTop: "60px", color: "#3a3028", fontSize: "12px" }}>
+            <p lang="ar" style={{ margin: "0 0 4px" }}>بِسْمِ اللَّهِ الرَّحْمَٰنِ الرَّحِيمِ</p>
+            <p style={{ margin: 0 }}>Sadqa-e-Jariya • Free Forever</p>
+          </footer>
         </div>
-      </div>
-    </div>
+      </main>
+    </>
   );
-}
-
-function hexToRgb(hex) {
-  if (!hex) return "201,168,76";
-  const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
-  return result ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}` : "201,168,76";
 }

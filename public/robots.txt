@@ -1,8 +1,19 @@
 User-agent: *
 Allow: /
 
-# Sitemap location
-Sitemap: https://soulayah.com/sitemap.xml
+# Important pages — crawlers ko priority batao
+Allow: /reader
+Allow: /duas
+Allow: /prayer
+Allow: /cartoons
+Allow: /names
+Allow: /kids
+Allow: /quiz
+Allow: /mood
+Allow: /cards
+Allow: /family
+Allow: /vocab
+Allow: /tafsir
+Allow: /sadqa
 
-# Disallow admin or private routes (if any)
-# Disallow: /admin
+Sitemap: https://soulayah.vercel.app/sitemap.xml

@@ -1,4 +1,5 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef } from "react";
+import { Helmet } from "react-helmet-async";
 
 const COLORS = {
   bg: "#0c1118",
@@ -114,207 +115,346 @@ const NAMES = [
   { num: 99, arabic: "ٱلرَّشِيد",      transliteration: "Ar-Rasheed",     urdu: "راہنما",            meaning: "The Guide to Right Path — Perfect in guidance", benefit: "Allah ka har kaam sahi raaste par — koi galti nahi usse" },
 ];
 
+// ── Component ke bahar — static data, har render pe naya object nahi banega ──
 const CATEGORIES = [
-  { id: "all", label: "Sab" },
-  { id: "mercy", label: "Rehmat", ids: [2, 3, 15, 35, 36, 45, 80, 81, 83, 84] },
-  { id: "power", label: "Qudrat", ids: [9, 10, 54, 55, 70, 71] },
-  { id: "knowledge", label: "Ilm", ids: [20, 32, 44, 51, 58, 65] },
-  { id: "creator", label: "Khaliq", ids: [12, 13, 14, 59, 60, 61, 96] },
+  { id: "all",       label: "Sab",     ids: null },
+  { id: "mercy",     label: "Rehmat",  ids: new Set([2,3,15,35,36,45,80,81,83,84]) },
+  { id: "power",     label: "Qudrat",  ids: new Set([9,10,54,55,70,71]) },
+  { id: "knowledge", label: "Ilm",     ids: new Set([20,32,44,51,58,65]) },
+  { id: "creator",   label: "Khaliq",  ids: new Set([12,13,14,59,60,61,96]) },
 ];
 
+// ── Sab 99 naam ka JSON-LD — bahar rakha taaki component re-render par nahi bane ──
+const PAGE_STRUCTURED_DATA = {
+  "@context": "https://schema.org",
+  "@type": "ItemList",
+  "name": "Allah Ke 99 Naam — Asma ul Husna",
+  "description": "Allah ke 99 naam — Asma ul Husna — Hindi aur Urdu tarjuma aur fazilat ke saath",
+  "url": "https://soulayah.vercel.app/names",
+  "numberOfItems": 99,
+  "itemListElement": NAMES.map((n) => ({
+    "@type": "ListItem",
+    "position": n.num,
+    "name": `${n.transliteration} — ${n.urdu}`,
+    "description": n.meaning,
+    "url": `https://soulayah.vercel.app/names#name-${n.num}`,
+  })),
+};
+
+const PAGE_STRUCTURED_DATA_STR = JSON.stringify(PAGE_STRUCTURED_DATA);
+
+// ── localStorage utils — component ke bahar ──
+const getFavs  = () => { try { return JSON.parse(localStorage.getItem("asma_favs") || "[]"); } catch { return []; } };
+const saveFavs = (f) => { try { localStorage.setItem("asma_favs", JSON.stringify(f)); } catch {} };
+
+// ── Virtual scroll constants ──
+const CARD_HEIGHT   = 140; // approx card height px
+const GRID_COLS     = 2;
+const OVERSCAN_ROWS = 3;   // viewport ke upar/neeche extra rows render karo
+
 export default function Asmaulhusna() {
-  const [search, setSearch] = useState("");
-  const [selected, setSelected] = useState(null);
-  const [category, setCategory] = useState("all");
-  const [favorites, setFavorites] = useState(() => {
-    try { return JSON.parse(localStorage.getItem("asma_favs") || "[]"); }
-    catch { return []; }
-  });
-  const [showFavs, setShowFavs] = useState(false);
+  const [search,    setSearch]    = useState("");
+  const [selected,  setSelected]  = useState(null);
+  const [category,  setCategory]  = useState("all");
+  const [favorites, setFavorites] = useState(getFavs);
+  const [showFavs,  setShowFavs]  = useState(false);
   const [dailyName, setDailyName] = useState(null);
+
+  // Virtual scroll state
+  const [scrollTop,       setScrollTop]       = useState(0);
+  const [containerHeight, setContainerHeight] = useState(600);
+  const scrollRef = useRef(null);
 
   useEffect(() => {
     const dayIndex = Math.floor(Date.now() / 86400000) % 99;
     setDailyName(NAMES[dayIndex]);
   }, []);
 
-  const toggleFav = (num) => {
-    const updated = favorites.includes(num)
-      ? favorites.filter(n => n !== num)
-      : [...favorites, num];
-    setFavorites(updated);
-    localStorage.setItem("asma_favs", JSON.stringify(updated));
-  };
+  // Container height — resize pe update
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(([entry]) => {
+      setContainerHeight(entry.contentRect.height);
+    });
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
 
-  const filtered = NAMES.filter(n => {
-    const q = search.toLowerCase();
-    const matchSearch = !q || n.transliteration.toLowerCase().includes(q) ||
-      n.urdu.includes(q) || n.meaning.toLowerCase().includes(q);
-    const matchCat = category === "all" ||
-      (CATEGORIES.find(c => c.id === category)?.ids?.includes(n.num));
-    const matchFav = !showFavs || favorites.includes(n.num);
-    return matchSearch && matchCat && matchFav;
-  });
+  const toggleFav = useCallback((num) => {
+    setFavorites(prev => {
+      const updated = prev.includes(num)
+        ? prev.filter(n => n !== num)
+        : [...prev, num];
+      saveFavs(updated);
+      return updated;
+    });
+  }, []);
 
-  // Detail modal
+  const filtered = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    const catIds = CATEGORIES.find(c => c.id === category)?.ids;
+    return NAMES.filter(n => {
+      if (q && !(
+        n.transliteration.toLowerCase().includes(q) ||
+        n.urdu.includes(q) ||
+        n.meaning.toLowerCase().includes(q)
+      )) return false;
+      if (catIds && !catIds.has(n.num)) return false;
+      if (showFavs && !favorites.includes(n.num)) return false;
+      return true;
+    });
+  }, [search, category, showFavs, favorites]);
+
+  // ── Virtual scroll calculations ──
+  // Grid mein 2 columns hain — rows calculate karo
+  const totalRows  = Math.ceil(filtered.length / GRID_COLS);
+  const totalHeight = totalRows * (CARD_HEIGHT + 10); // 10px gap
+
+  const startRow = Math.max(0, Math.floor(scrollTop / (CARD_HEIGHT + 10)) - OVERSCAN_ROWS);
+  const endRow   = Math.min(totalRows, Math.ceil((scrollTop + containerHeight) / (CARD_HEIGHT + 10)) + OVERSCAN_ROWS);
+
+  const visibleItems = useMemo(() => {
+    const items = [];
+    for (let row = startRow; row < endRow; row++) {
+      for (let col = 0; col < GRID_COLS; col++) {
+        const idx = row * GRID_COLS + col;
+        if (idx < filtered.length) items.push({ item: filtered[idx], row, col, idx });
+      }
+    }
+    return items;
+  }, [filtered, startRow, endRow]);
+
+  const handleScroll = useCallback((e) => {
+    setScrollTop(e.currentTarget.scrollTop);
+  }, []);
+
+  // ── Detail View ──
   if (selected) {
     const isFav = favorites.includes(selected.num);
-    const prev = NAMES[selected.num - 2];
-    const next = NAMES[selected.num];
+    const prev  = NAMES[selected.num - 2];
+    const next  = NAMES[selected.num];
+
     return (
-      <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", paddingBottom: "80px" }}>
-        <div style={{ background: `linear-gradient(180deg, #0f1822 0%, ${COLORS.bg} 100%)`, borderBottom: `1px solid ${COLORS.goldDim}`, padding: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
-          <button onClick={() => setSelected(null)} style={{ background: "transparent", border: `1px solid ${COLORS.goldDim}`, color: COLORS.textDim, borderRadius: "10px", padding: "8px 14px", cursor: "pointer", fontSize: "13px" }}>← Wapas</button>
-          <span style={{ color: COLORS.textDim, fontSize: "13px" }}>{selected.num} / 99</span>
-        </div>
+      <>
+        <Helmet>
+          <title>{selected.transliteration} ({selected.urdu}) — Allah Ka #{selected.num} Naam | Soulayah</title>
+          <meta name="description" content={`${selected.transliteration} (${selected.arabic}): ${selected.meaning}. Urdu mein: ${selected.urdu}. Faida: ${selected.benefit}`} />
+          <meta name="keywords" content={`${selected.transliteration}, ${selected.urdu}, allah ka naam, asma ul husna ${selected.num}`} />
+          <link rel="canonical" href={`https://soulayah.vercel.app/names#name-${selected.num}`} />
+          <meta property="og:title" content={`${selected.transliteration} — Allah Ka Naam #${selected.num}`} />
+          <meta property="og:description" content={`${selected.meaning}. ${selected.benefit}`} />
+        </Helmet>
 
-        <div style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
-          {/* Main Card */}
-          <div style={{ background: `linear-gradient(135deg, #1a2332, #0f1c2a)`, border: `1px solid ${COLORS.gold}`, borderRadius: "24px", padding: "40px 24px", textAlign: "center", marginBottom: "20px", position: "relative" }}>
-            <button onClick={() => toggleFav(selected.num)} style={{ position: "absolute", top: "16px", right: "16px", background: "transparent", border: "none", cursor: "pointer", fontSize: "22px" }}>
-              {isFav ? "⭐" : "☆"}
-            </button>
-            <div style={{ color: COLORS.goldDim, fontSize: "13px", marginBottom: "16px", letterSpacing: "2px" }}>
-              #{selected.num}
-            </div>
-            <div style={{ fontSize: "52px", color: COLORS.gold, fontFamily: "serif", lineHeight: 1.4, marginBottom: "16px", direction: "rtl" }}>
-              {selected.arabic}
-            </div>
-            <div style={{ color: COLORS.goldLight, fontSize: "22px", fontWeight: "600", marginBottom: "8px" }}>
-              {selected.transliteration}
-            </div>
-            <div style={{ color: COLORS.text, fontSize: "16px", fontFamily: "serif", direction: "rtl", marginBottom: "16px" }}>
-              {selected.urdu}
-            </div>
-            <div style={{ color: COLORS.textDim, fontSize: "14px", lineHeight: "1.6", fontStyle: "italic" }}>
-              {selected.meaning}
-            </div>
+        <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", paddingBottom: "80px" }}>
+          <div style={{ background: `linear-gradient(180deg, #0f1822 0%, ${COLORS.bg} 100%)`, borderBottom: `1px solid ${COLORS.goldDim}`, padding: "20px", display: "flex", alignItems: "center", gap: "12px" }}>
+            <button onClick={() => setSelected(null)} style={{ background: "transparent", border: `1px solid ${COLORS.goldDim}`, color: COLORS.textDim, borderRadius: "10px", padding: "8px 14px", cursor: "pointer", fontSize: "13px" }}>← Wapas</button>
+            <span style={{ color: COLORS.textDim, fontSize: "13px" }}>{selected.num} / 99</span>
           </div>
 
-          {/* Benefit */}
-          <div style={{ background: COLORS.card, border: `1px solid ${COLORS.goldDim}`, borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
-            <div style={{ color: COLORS.gold, fontSize: "12px", letterSpacing: "1px", marginBottom: "10px" }}>💡 Fائدہ / BENEFIT</div>
-            <div style={{ color: COLORS.text, fontSize: "15px", lineHeight: "1.8", direction: "rtl", textAlign: "right" }}>
-              {selected.benefit}
-            </div>
-          </div>
-
-          {/* Navigation */}
-          <div style={{ display: "flex", gap: "12px" }}>
-            {prev && (
-              <button onClick={() => setSelected(prev)} style={{ flex: 1, padding: "14px", borderRadius: "12px", border: `1px solid ${COLORS.goldDim}`, background: "transparent", color: COLORS.textDim, cursor: "pointer", fontSize: "13px" }}>
-                ← {prev.transliteration}
+          <div style={{ padding: "24px 20px", maxWidth: "480px", margin: "0 auto" }}>
+            <div
+              id={`name-${selected.num}`}
+              style={{ background: `linear-gradient(135deg, #1a2332, #0f1c2a)`, border: `1px solid ${COLORS.gold}`, borderRadius: "24px", padding: "40px 24px", textAlign: "center", marginBottom: "20px", position: "relative" }}
+            >
+              <button
+                onClick={() => toggleFav(selected.num)}
+                aria-label={isFav ? "Favorites se hatayen" : "Favorites mein add karein"}
+                style={{ position: "absolute", top: "16px", right: "16px", background: "transparent", border: "none", cursor: "pointer", fontSize: "22px" }}
+              >
+                {isFav ? "⭐" : "☆"}
               </button>
-            )}
-            {next && (
-              <button onClick={() => setSelected(next)} style={{ flex: 1, padding: "14px", borderRadius: "12px", border: `1px solid ${COLORS.gold}`, background: `${COLORS.gold}18`, color: COLORS.gold, cursor: "pointer", fontSize: "13px" }}>
-                {next.transliteration} →
-              </button>
-            )}
+              <div style={{ color: COLORS.goldDim, fontSize: "13px", marginBottom: "16px", letterSpacing: "2px" }}>#{selected.num}</div>
+              <div lang="ar" style={{ fontSize: "52px", color: COLORS.gold, fontFamily: "serif", lineHeight: 1.4, marginBottom: "16px", direction: "rtl" }}>
+                {selected.arabic}
+              </div>
+              <div style={{ color: COLORS.goldLight, fontSize: "22px", fontWeight: "600", marginBottom: "8px" }}>{selected.transliteration}</div>
+              <div lang="ur" style={{ color: COLORS.text, fontSize: "16px", fontFamily: "serif", direction: "rtl", marginBottom: "16px" }}>{selected.urdu}</div>
+              <div style={{ color: COLORS.textDim, fontSize: "14px", lineHeight: "1.6", fontStyle: "italic" }}>{selected.meaning}</div>
+            </div>
+
+            <div style={{ background: COLORS.card, border: `1px solid ${COLORS.goldDim}`, borderRadius: "16px", padding: "20px", marginBottom: "20px" }}>
+              <div style={{ color: COLORS.gold, fontSize: "12px", letterSpacing: "1px", marginBottom: "10px" }}>FAIDA / BENEFIT</div>
+              <div lang="ur" style={{ color: COLORS.text, fontSize: "15px", lineHeight: "1.8", direction: "rtl", textAlign: "right" }}>{selected.benefit}</div>
+            </div>
+
+            <div style={{ display: "flex", gap: "12px" }}>
+              {prev && (
+                <button onClick={() => setSelected(prev)} style={{ flex: 1, padding: "14px", borderRadius: "12px", border: `1px solid ${COLORS.goldDim}`, background: "transparent", color: COLORS.textDim, cursor: "pointer", fontSize: "13px" }}>
+                  ← {prev.transliteration}
+                </button>
+              )}
+              {next && (
+                <button onClick={() => setSelected(next)} style={{ flex: 1, padding: "14px", borderRadius: "12px", border: `1px solid ${COLORS.gold}`, background: `${COLORS.gold}18`, color: COLORS.gold, cursor: "pointer", fontSize: "13px" }}>
+                  {next.transliteration} →
+                </button>
+              )}
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
+  // ── List View ──
   return (
-    <div style={{ minHeight: "100vh", background: COLORS.bg, color: COLORS.text, fontFamily: "system-ui, sans-serif", paddingBottom: "80px" }}>
-      {/* Header */}
-      <div style={{ background: `linear-gradient(180deg, #0f1822 0%, ${COLORS.bg} 100%)`, borderBottom: `1px solid ${COLORS.goldDim}`, padding: "24px 20px 16px" }}>
-        <div style={{ textAlign: "center", marginBottom: "16px" }}>
-          <div style={{ fontSize: "28px" }}>📿</div>
-          <h1 style={{ color: COLORS.gold, fontSize: "22px", fontFamily: "Georgia, serif", margin: "8px 0 4px" }}>Asma ul Husna</h1>
-          <p style={{ color: COLORS.textDim, fontSize: "13px", margin: 0 }}>اللہ کے ۹۹ نام</p>
-        </div>
-        {/* Search */}
-        <div style={{ position: "relative", maxWidth: "480px", margin: "0 auto" }}>
-          <input
-            value={search}
-            onChange={e => setSearch(e.target.value)}
-            placeholder="Naam dhundhen... (e.g. Rahman, Kareem)"
-            style={{ width: "100%", background: COLORS.card, border: `1px solid ${COLORS.goldDim}`, borderRadius: "12px", padding: "12px 16px", color: COLORS.text, fontSize: "14px", outline: "none", boxSizing: "border-box" }}
-          />
-        </div>
-      </div>
+    <>
+      <Helmet>
+        <title>Allah Ke 99 Naam — Asma ul Husna Hindi Urdu Mein | Soulayah</title>
+        <meta name="description" content="Allah ke 99 naam — Asma ul Husna — Hindi aur Urdu tarjuma, fazilat aur faide ke saath. Ar-Rahman, Ar-Raheem, Al-Malik, Al-Quddus aur tamam asma. Search karein, favorites save karein." />
+        <meta name="keywords" content="99 names of allah, asma ul husna, allah ke 99 naam, allah ke naam hindi urdu, ar rahman meaning, ar raheem, al malik, asmaul husna benefits, 99 names benefits hindi" />
+        <link rel="canonical" href="https://soulayah.vercel.app/names" />
+        <meta property="og:title" content="Allah Ke 99 Naam — Asma ul Husna | Soulayah" />
+        <meta property="og:description" content="Allah ke 99 naam Hindi aur Urdu tarjuma ke saath. Har naam ki fazilat aur benefit. Soulayah Islamic App." />
+        <meta property="og:url" content="https://soulayah.vercel.app/names" />
+        <meta property="og:type" content="website" />
+        <script type="application/ld+json">{PAGE_STRUCTURED_DATA_STR}</script>
+      </Helmet>
 
-      <div style={{ padding: "16px 20px", maxWidth: "480px", margin: "0 auto" }}>
-
-        {/* Daily Name */}
-        {dailyName && !search && (
-          <div
-            onClick={() => setSelected(dailyName)}
-            style={{ background: `linear-gradient(135deg, #1e2d1e, #1a2332)`, border: `1px solid ${COLORS.gold}`, borderRadius: "16px", padding: "20px", marginBottom: "16px", cursor: "pointer", textAlign: "center" }}
-          >
-            <div style={{ color: COLORS.goldDim, fontSize: "11px", letterSpacing: "2px", marginBottom: "8px" }}>✨ AAJ KA NAAM</div>
-            <div style={{ color: COLORS.gold, fontSize: "32px", fontFamily: "serif", direction: "rtl", marginBottom: "6px" }}>{dailyName.arabic}</div>
-            <div style={{ color: COLORS.goldLight, fontSize: "16px", fontWeight: "600" }}>{dailyName.transliteration}</div>
-            <div style={{ color: COLORS.textDim, fontSize: "12px", marginTop: "6px" }}>{dailyName.urdu}</div>
+      <div
+        ref={scrollRef}
+        onScroll={handleScroll}
+        style={{
+          height: "100vh",
+          overflowY: "auto",
+          background: COLORS.bg,
+          color: COLORS.text,
+          fontFamily: "system-ui, sans-serif",
+          paddingBottom: "80px",
+          // scroll anchoring — search karne par jump na ho
+          overflowAnchor: "none",
+        }}
+      >
+        {/* Header */}
+        <header style={{ background: `linear-gradient(180deg, #0f1822 0%, ${COLORS.bg} 100%)`, borderBottom: `1px solid ${COLORS.goldDim}`, padding: "24px 20px 16px", position: "sticky", top: 0, zIndex: 10 }}>
+          <div style={{ textAlign: "center", marginBottom: "16px" }}>
+            <div style={{ fontSize: "28px" }} aria-hidden="true">📿</div>
+            <h1 style={{ color: COLORS.gold, fontSize: "22px", fontFamily: "Georgia, serif", margin: "8px 0 4px" }}>Asma ul Husna</h1>
+            <p style={{ color: COLORS.textDim, fontSize: "13px", margin: 0 }}>اللہ کے ۹۹ نام</p>
           </div>
-        )}
+          <div style={{ position: "relative", maxWidth: "480px", margin: "0 auto" }}>
+            <label htmlFor="names-search" style={{ position: "absolute", width: 1, height: 1, overflow: "hidden", clip: "rect(0,0,0,0)" }}>
+              Allah ke naam dhundein
+            </label>
+            <input
+              id="names-search"
+              value={search}
+              onChange={e => setSearch(e.target.value)}
+              placeholder="Naam dhundhen... (e.g. Rahman, Kareem)"
+              autoComplete="off"
+              style={{ width: "100%", background: COLORS.card, border: `1px solid ${COLORS.goldDim}`, borderRadius: "12px", padding: "12px 16px", color: COLORS.text, fontSize: "14px", outline: "none", boxSizing: "border-box" }}
+            />
+          </div>
+        </header>
 
-        {/* Filters */}
-        <div style={{ display: "flex", gap: "8px", marginBottom: "16px", overflowX: "auto", paddingBottom: "4px" }}>
-          {CATEGORIES.map(c => (
-            <button key={c.id} onClick={() => { setCategory(c.id); setShowFavs(false); }} style={{
-              padding: "7px 14px", borderRadius: "20px", fontSize: "12px", whiteSpace: "nowrap",
-              border: `1px solid ${category === c.id && !showFavs ? COLORS.gold : COLORS.goldDim}`,
-              background: category === c.id && !showFavs ? `${COLORS.gold}22` : "transparent",
-              color: category === c.id && !showFavs ? COLORS.gold : COLORS.textDim, cursor: "pointer"
-            }}>{c.label}</button>
-          ))}
-          <button onClick={() => { setShowFavs(!showFavs); setCategory("all"); }} style={{
-            padding: "7px 14px", borderRadius: "20px", fontSize: "12px", whiteSpace: "nowrap",
-            border: `1px solid ${showFavs ? COLORS.gold : COLORS.goldDim}`,
-            background: showFavs ? `${COLORS.gold}22` : "transparent",
-            color: showFavs ? COLORS.gold : COLORS.textDim, cursor: "pointer"
-          }}>⭐ Pasandida</button>
-        </div>
+        <main style={{ padding: "16px 20px", maxWidth: "480px", margin: "0 auto" }}>
 
-        {/* Count */}
-        <div style={{ color: COLORS.textDim, fontSize: "12px", marginBottom: "14px" }}>
-          {filtered.length} naam dikh rahe hain
-        </div>
-
-        {/* Grid */}
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
-          {filtered.map((name, i) => (
+          {/* Daily Name */}
+          {dailyName && !search && (
             <div
-              key={name.num}
-              onClick={() => setSelected(name)}
-              style={{
-                background: COLORS.card, border: `1px solid ${COLORS.goldDim}`,
-                borderRadius: "14px", padding: "16px 12px", cursor: "pointer",
-                transition: "all 0.2s", textAlign: "center",
-                position: "relative",
-                animation: `fadeIn 0.3s ease ${i * 0.02}s both`
-              }}
+              onClick={() => setSelected(dailyName)}
+              role="button"
+              tabIndex={0}
+              aria-label={`Aaj ka naam: ${dailyName.transliteration}`}
+              onKeyDown={e => e.key === "Enter" && setSelected(dailyName)}
+              style={{ background: `linear-gradient(135deg, #1e2d1e, #1a2332)`, border: `1px solid ${COLORS.gold}`, borderRadius: "16px", padding: "20px", marginBottom: "16px", cursor: "pointer", textAlign: "center" }}
             >
-              {favorites.includes(name.num) && (
-                <div style={{ position: "absolute", top: "8px", right: "8px", fontSize: "12px" }}>⭐</div>
-              )}
-              <div style={{ color: COLORS.textDim, fontSize: "10px", marginBottom: "6px" }}>#{name.num}</div>
-              <div style={{ color: COLORS.gold, fontSize: "22px", fontFamily: "serif", direction: "rtl", marginBottom: "6px", lineHeight: 1.4 }}>
-                {name.arabic}
-              </div>
-              <div style={{ color: COLORS.goldLight, fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}>
-                {name.transliteration}
-              </div>
-              <div style={{ color: COLORS.textDim, fontSize: "10px" }}>{name.urdu}</div>
+              <div style={{ color: COLORS.goldDim, fontSize: "11px", letterSpacing: "2px", marginBottom: "8px" }}>AAJ KA NAAM</div>
+              <div lang="ar" style={{ color: COLORS.gold, fontSize: "32px", fontFamily: "serif", direction: "rtl", marginBottom: "6px" }}>{dailyName.arabic}</div>
+              <div style={{ color: COLORS.goldLight, fontSize: "16px", fontWeight: "600" }}>{dailyName.transliteration}</div>
+              <div lang="ur" style={{ color: COLORS.textDim, fontSize: "12px", marginTop: "6px" }}>{dailyName.urdu}</div>
             </div>
-          ))}
-        </div>
+          )}
 
-        {filtered.length === 0 && (
-          <div style={{ textAlign: "center", padding: "60px 20px", color: COLORS.textDim }}>
-            <div style={{ fontSize: "40px", marginBottom: "12px" }}>📿</div>
-            <div>Koi naam nahi mila</div>
+          {/* Filters */}
+          <div role="group" aria-label="Category filters" style={{ display: "flex", gap: "8px", marginBottom: "16px", overflowX: "auto", paddingBottom: "4px" }}>
+            {CATEGORIES.map(c => (
+              <button
+                key={c.id}
+                onClick={() => { setCategory(c.id); setShowFavs(false); }}
+                aria-pressed={category === c.id && !showFavs}
+                style={{
+                  padding: "7px 14px", borderRadius: "20px", fontSize: "12px", whiteSpace: "nowrap",
+                  border: `1px solid ${category === c.id && !showFavs ? COLORS.gold : COLORS.goldDim}`,
+                  background: category === c.id && !showFavs ? `${COLORS.gold}22` : "transparent",
+                  color: category === c.id && !showFavs ? COLORS.gold : COLORS.textDim, cursor: "pointer"
+                }}
+              >{c.label}</button>
+            ))}
+            <button
+              onClick={() => { setShowFavs(!showFavs); setCategory("all"); }}
+              aria-pressed={showFavs}
+              style={{
+                padding: "7px 14px", borderRadius: "20px", fontSize: "12px", whiteSpace: "nowrap",
+                border: `1px solid ${showFavs ? COLORS.gold : COLORS.goldDim}`,
+                background: showFavs ? `${COLORS.gold}22` : "transparent",
+                color: showFavs ? COLORS.gold : COLORS.textDim, cursor: "pointer"
+              }}
+            >Pasandida</button>
           </div>
-        )}
+
+          <div aria-live="polite" style={{ color: COLORS.textDim, fontSize: "12px", marginBottom: "14px" }}>
+            {filtered.length} naam dikh rahe hain
+          </div>
+
+          {/* Virtual Scroll Grid */}
+          <div
+            role="list"
+            aria-label="Allah ke 99 naam"
+            style={{ position: "relative", height: `${totalHeight}px` }}
+          >
+            {visibleItems.map(({ item: name, row, col }) => (
+              <div
+                key={name.num}
+                id={`name-${name.num}`}
+                role="listitem"
+                onClick={() => setSelected(name)}
+                onKeyDown={e => e.key === "Enter" && setSelected(name)}
+                tabIndex={0}
+                aria-label={`${name.transliteration} — ${name.urdu}`}
+                style={{
+                  position: "absolute",
+                  top:   `${row * (CARD_HEIGHT + 10)}px`,
+                  left:  col === 0 ? "0" : "calc(50% + 5px)",
+                  width: "calc(50% - 5px)",
+                  height: `${CARD_HEIGHT}px`,
+                  background: COLORS.card,
+                  border: `1px solid ${COLORS.goldDim}`,
+                  borderRadius: "14px",
+                  padding: "16px 12px",
+                  cursor: "pointer",
+                  textAlign: "center",
+                  boxSizing: "border-box",
+                  contain: "layout style",
+                  willChange: "transform",
+                }}
+              >
+                {favorites.includes(name.num) && (
+                  <div aria-hidden="true" style={{ position: "absolute", top: "8px", right: "8px", fontSize: "12px" }}>⭐</div>
+                )}
+                <div style={{ color: COLORS.textDim, fontSize: "10px", marginBottom: "6px" }}>#{name.num}</div>
+                <div lang="ar" style={{ color: COLORS.gold, fontSize: "22px", fontFamily: "serif", direction: "rtl", marginBottom: "6px", lineHeight: 1.4 }}>
+                  {name.arabic}
+                </div>
+                <div style={{ color: COLORS.goldLight, fontSize: "12px", fontWeight: "600", marginBottom: "4px" }}>{name.transliteration}</div>
+                <div lang="ur" style={{ color: COLORS.textDim, fontSize: "10px" }}>{name.urdu}</div>
+              </div>
+            ))}
+          </div>
+
+          {filtered.length === 0 && (
+            <div role="status" style={{ textAlign: "center", padding: "60px 20px", color: COLORS.textDim }}>
+              <div style={{ fontSize: "40px", marginBottom: "12px" }} aria-hidden="true">📿</div>
+              <div>Koi naam nahi mila</div>
+            </div>
+          )}
+        </main>
       </div>
 
       <style>{`
         @keyframes fadeIn { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: translateY(0); } }
+        *:focus-visible { outline: 2px solid #C9A84C; outline-offset: 2px; }
       `}</style>
-    </div>
+    </>
   );
 }

@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, lazy, Suspense, memo, useCallback } from 'react';
+import { Helmet, HelmetProvider } from 'react-helmet-async';
 import { 
   Play, Pause, Volume2, VolumeX, Heart, Share2, Bookmark, 
   ChevronLeft, ChevronRight, Star, Clock, Users, Sparkles,
@@ -7,8 +8,11 @@ import {
   Headphones, ExternalLink, Search, Globe, Filter
 } from 'lucide-react';
 
-// ==================== ALL STORIES DATA ====================
+// ==================== LAZY LOADED COMPONENTS ====================
+const YouTubePlayer = lazy(() => import('./YouTubePlayer'));
+const ParticleBackground = lazy(() => import('./ParticleBackground'));
 
+// ==================== ALL STORIES DATA ====================
 const allVideos = [
   // ---- IQRA CARTOON (English/Urdu) ----
   {
@@ -347,48 +351,8 @@ const channels = [
 const categories = ["All", "Prophets", "Animated Series", "Islamic Learning", "Quran Learning", "Duas & Prayers", "For Adults"];
 const languages = ["All", "Hindi", "Urdu", "English", "Arabic"];
 
-// ==================== PARTICLE BACKGROUND ====================
-const ParticleBackground = () => {
-  const canvasRef = useRef(null);
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    canvas.width = window.innerWidth;
-    canvas.height = window.innerHeight;
-    const particles = Array.from({ length: 35 }, () => ({
-      x: Math.random() * canvas.width,
-      y: Math.random() * canvas.height,
-      size: Math.random() * 2 + 0.5,
-      speedY: Math.random() * 0.4 + 0.1,
-      opacity: Math.random() * 0.4 + 0.1,
-      color: Math.random() > 0.5 ? '#c9a84c' : '#4a9b8e'
-    }));
-    let animId;
-    const animate = () => {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      particles.forEach(p => {
-        ctx.beginPath();
-        ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
-        ctx.fillStyle = p.color;
-        ctx.globalAlpha = p.opacity;
-        ctx.fill();
-        p.y -= p.speedY;
-        if (p.y < -10) { p.y = canvas.height + 10; p.x = Math.random() * canvas.width; }
-      });
-      ctx.globalAlpha = 1;
-      animId = requestAnimationFrame(animate);
-    };
-    animate();
-    const onResize = () => { canvas.width = window.innerWidth; canvas.height = window.innerHeight; };
-    window.addEventListener('resize', onResize);
-    return () => { cancelAnimationFrame(animId); window.removeEventListener('resize', onResize); };
-  }, []);
-  return <canvas ref={canvasRef} style={{ position: 'fixed', top: 0, left: 0, width: '100%', height: '100%', pointerEvents: 'none', zIndex: 0 }} />;
-};
-
-// ==================== STORY CARD ====================
-const StoryCard = ({ story, onClick, isFav, onFav }) => {
+// ==================== OPTIMIZED STORY CARD (MEMOIZED) ====================
+const StoryCard = memo(({ story, onClick, isFav, onFav }) => {
   const [hovered, setHovered] = useState(false);
   const [imgLoaded, setImgLoaded] = useState(false);
   const [imgErr, setImgErr] = useState(false);
@@ -398,8 +362,16 @@ const StoryCard = ({ story, onClick, isFav, onFav }) => {
     ? `https://placehold.co/800x450/1a1a1a/c9a84c?text=${encodeURIComponent(story.title)}`
     : `https://i.ytimg.com/vi/${story.youtubeId}/${thumbQuality}.jpg`;
 
+  const handleError = useCallback(() => {
+    if (thumbQuality === 'mqdefault') {
+      setThumbQuality('0');
+    } else {
+      setImgErr(true);
+    }
+  }, [thumbQuality]);
+
   return (
-    <div
+    <article
       style={{
         background: '#1a1a1a', border: `1px solid ${hovered ? story.color + '50' : '#2a2a2a'}`,
         borderRadius: '20px', overflow: 'hidden', cursor: 'pointer',
@@ -411,30 +383,38 @@ const StoryCard = ({ story, onClick, isFav, onFav }) => {
       onMouseLeave={() => setHovered(false)}
       onClick={() => onClick(story)}
     >
-      <div style={{ position: 'relative', width: '100%', height: '180px', overflow: 'hidden' }}>
-        <img src={thumb} alt={story.title}
-          style={{ width: '100%', height: '100%', objectFit: 'cover', opacity: imgLoaded ? 1 : 0, transform: hovered ? 'scale(1.1)' : 'scale(1)', transition: 'all 0.5s ease' }}
-          onLoad={() => setImgLoaded(true)}
-          onError={() => {
-            if (thumbQuality === 'mqdefault') {
-              setThumbQuality('0');
-            } else {
-              setImgErr(true);
-            }
+      <div style={{ position: 'relative', width: '100%', height: 0, paddingBottom: '56.25%', overflow: 'hidden' }}>
+        <img 
+          src={thumb} 
+          alt={`${story.title} - ${story.titleHindi || ''} Islamic cartoon video thumbnail`}
+          loading="lazy"
+          decoding="async"
+          style={{ 
+            position: 'absolute', 
+            top: 0, 
+            left: 0, 
+            width: '100%', 
+            height: '100%', 
+            objectFit: 'cover', 
+            opacity: imgLoaded ? 1 : 0, 
+            transform: hovered ? 'scale(1.1)' : 'scale(1)', 
+            transition: 'all 0.5s ease' 
           }}
+          onLoad={() => setImgLoaded(true)}
+          onError={handleError}
         />
         {!imgLoaded && <div style={{ position: 'absolute', inset: 0, background: 'linear-gradient(135deg, #1a1a1a, #2a2a2a)' }} />}
         <div style={{ position: 'absolute', inset: 0, background: 'rgba(0,0,0,0.3)', opacity: hovered ? 1 : 0, transition: '0.3s', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: story.color, display: 'flex', alignItems: 'center', justifyContent: 'center', boxShadow: '0 4px 20px rgba(0,0,0,0.4)' }}>
-            <Play size={24} color="white" style={{ marginLeft: 3 }} />
+            <Play size={24} color="white" style={{ marginLeft: 3 }} aria-hidden="true" />
           </div>
         </div>
         {/* Badges */}
         <div style={{ position: 'absolute', top: 10, left: 10, background: `${story.color}25`, border: `1px solid ${story.color}60`, color: story.color, padding: '3px 9px', borderRadius: 8, fontSize: '0.7rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: 4, backdropFilter: 'blur(8px)' }}>
-          <Video size={11} /> {story.channel}
+          <Video size={11} aria-hidden="true" /> {story.channel}
         </div>
         <div style={{ position: 'absolute', bottom: 10, right: 10, background: 'rgba(0,0,0,0.75)', color: '#fff', padding: '3px 9px', borderRadius: 8, fontSize: '0.72rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-          <Clock size={11} /> {story.duration}
+          <Clock size={11} aria-hidden="true" /> {story.duration}
         </div>
         <div style={{ position: 'absolute', bottom: 10, left: 10, background: 'rgba(0,0,0,0.65)', color: '#bbb', padding: '3px 8px', borderRadius: 6, fontSize: '0.65rem', backdropFilter: 'blur(6px)' }}>
           {story.language.join(' • ')}
@@ -450,11 +430,14 @@ const StoryCard = ({ story, onClick, isFav, onFav }) => {
         </p>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
           <span style={{ fontSize: '0.75rem', color: '#555', background: '#141414', padding: '3px 9px', borderRadius: 6, display: 'flex', alignItems: 'center', gap: 5 }}>
-            <Users size={11} /> {story.ageGroup}
+            <Users size={11} aria-hidden="true" /> {story.ageGroup}
           </span>
-          <button style={{ background: 'none', border: 'none', color: isFav ? '#e07a5f' : '#555', cursor: 'pointer', padding: 6, display: 'flex' }}
-            onClick={e => { e.stopPropagation(); onFav(story.id); }}>
-            <Heart size={16} fill={isFav ? '#e07a5f' : 'none'} />
+          <button 
+            style={{ background: 'none', border: 'none', color: isFav ? '#e07a5f' : '#555', cursor: 'pointer', padding: 6, display: 'flex' }}
+            onClick={e => { e.stopPropagation(); onFav(story.id); }}
+            aria-label={isFav ? "Remove from favorites" : "Add to favorites"}
+          >
+            <Heart size={16} fill={isFav ? '#e07a5f' : 'none'} aria-hidden="true" />
           </button>
         </div>
         {story.moralHindi && (
@@ -463,69 +446,38 @@ const StoryCard = ({ story, onClick, isFav, onFav }) => {
           </p>
         )}
       </div>
-    </div>
+    </article>
   );
-};
+});
 
-// ==================== YOUTUBE PLAYER ====================
-const YouTubePlayer = ({ story, onClose }) => {
-  const embedSrc = `https://www.youtube.com/embed/${story.youtubeId}?autoplay=1&rel=0&modestbranding=1`;
+StoryCard.displayName = 'StoryCard';
 
-  return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', backdropFilter: 'blur(20px)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={onClose}>
-      <div style={{ width: '100%', maxWidth: 860, background: '#141414', borderRadius: 24, border: '1px solid #2a2a2a', overflow: 'hidden', maxHeight: '92vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
-        {/* Header */}
-        <div style={{ padding: '20px 24px 16px', position: 'relative', textAlign: 'center' }}>
-          <button onClick={onClose} style={{ position: 'absolute', top: 16, right: 16, background: '#2a2a2a', border: 'none', color: '#aaa', cursor: 'pointer', width: 36, height: 36, borderRadius: '50%', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-            <X size={20} />
-          </button>
-          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: `${story.color}20`, border: `1px solid ${story.color}40`, padding: '5px 14px', borderRadius: 30, marginBottom: 12, fontSize: '0.8rem', color: story.color, fontWeight: 600 }}>
-            <Video size={14} /> {story.channel}
-          </div>
-          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: '#f5f5f5', marginBottom: 4 }}>{story.titleHindi || story.title}</h2>
-          <p style={{ color: '#888', fontSize: '0.95rem', fontFamily: "'Noto Nastaliq Urdu', serif" }}>{story.titleUrdu}</p>
-          <div style={{ display: 'flex', gap: 8, justifyContent: 'center', flexWrap: 'wrap', marginTop: 12 }}>
-            {story.language.map(l => (
-              <span key={l} style={{ background: '#2a2a2a', color: '#aaa', padding: '3px 12px', borderRadius: 20, fontSize: '0.75rem' }}>{l}</span>
-            ))}
-          </div>
-        </div>
+// ==================== SEO STRUCTURED DATA ====================
+const generateStructuredData = (videos) => {
+  const videoData = videos.map(v => ({
+    "@type": "VideoObject",
+    "name": v.title,
+    "description": v.description,
+    "thumbnailUrl": `https://i.ytimg.com/vi/${v.youtubeId}/mqdefault.jpg`,
+    "uploadDate": "2024-01-01",
+    "duration": v.duration,
+    "contentUrl": `https://youtube.com/watch?v=${v.youtubeId}`,
+    "embedUrl": `https://www.youtube.com/embed/${v.youtubeId}`,
+    "author": {
+      "@type": "Organization",
+      "name": v.channel
+    }
+  }));
 
-        {/* Video */}
-        <div style={{ padding: '0 24px' }}>
-          <div style={{ aspectRatio: '16/9', borderRadius: 16, overflow: 'hidden', background: '#000' }}>
-            <iframe
-              width="100%" height="100%"
-              src={embedSrc}
-              title={story.title}
-              frameBorder="0"
-              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
-              allowFullScreen
-            />
-          </div>
-        </div>
-
-        {/* Moral */}
-        <div style={{ margin: '20px 24px', background: `${story.color}12`, border: `1px solid ${story.color}30`, borderRadius: 16, padding: '16px 20px', display: 'flex', gap: 14, alignItems: 'flex-start' }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: `${story.color}20`, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
-            <Sparkles size={18} color={story.color} />
-          </div>
-          <div>
-            <p style={{ fontSize: '0.72rem', color: '#666', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Today's Lesson / आज का सबक</p>
-            <p style={{ fontSize: '0.95rem', color: '#f5f5f5', fontStyle: 'italic', lineHeight: 1.6 }}>{story.moralHindi || story.moral}</p>
-          </div>
-        </div>
-
-        {/* External Link */}
-        <div style={{ padding: '0 24px 24px', textAlign: 'center' }}>
-          <a href={`https://youtube.com/watch?v=${story.youtubeId}`} target="_blank" rel="noopener noreferrer"
-            style={{ display: 'inline-flex', alignItems: 'center', gap: 8, color: story.color, textDecoration: 'none', fontSize: '0.88rem', fontWeight: 600, padding: '10px 22px', background: `${story.color}15`, border: `1px solid ${story.color}40`, borderRadius: 30 }}>
-            <ExternalLink size={15} /> YouTube par dekhein
-          </a>
-        </div>
-      </div>
-    </div>
-  );
+  return {
+    "@context": "https://schema.org",
+    "@type": "ItemList",
+    "itemListElement": videoData.map((video, index) => ({
+      "@type": "ListItem",
+      "position": index + 1,
+      "item": video
+    }))
+  };
 };
 
 // ==================== MAIN APP ====================
@@ -536,26 +488,44 @@ const IslamicCartoonStories = () => {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedStory, setSelectedStory] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
-  const [favorites, setFavorites] = useState([]);
-
-  const toggleFav = (id) => setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
-
-  const filtered = allVideos.filter(s => {
-    const catMatch = activeCategory === "All" || s.category === activeCategory;
-    const langMatch = activeLang === "All" || s.language.includes(activeLang);
-    const chanMatch = activeChannel === "all" || s.channel === activeChannel;
-    const q = searchQuery.toLowerCase();
-    const searchMatch = !q || [s.title, s.titleHindi, s.titleUrdu, s.channel, s.category, s.description]
-      .some(f => f && f.toLowerCase().includes(q));
-    return catMatch && langMatch && chanMatch && searchMatch;
+  const [favorites, setFavorites] = useState(() => {
+    try {
+      return JSON.parse(localStorage.getItem('islamicFavorites')) || [];
+    } catch {
+      return [];
+    }
   });
+
+  // Persist favorites
+  useEffect(() => {
+    localStorage.setItem('islamicFavorites', JSON.stringify(favorites));
+  }, [favorites]);
+
+  const toggleFav = useCallback((id) => {
+    setFavorites(f => f.includes(id) ? f.filter(x => x !== id) : [...f, id]);
+  }, []);
+
+  const filtered = React.useMemo(() => {
+    return allVideos.filter(s => {
+      const catMatch = activeCategory === "All" || s.category === activeCategory;
+      const langMatch = activeLang === "All" || s.language.includes(activeLang);
+      const chanMatch = activeChannel === "all" || s.channel === activeChannel;
+      const q = searchQuery.toLowerCase();
+      const searchMatch = !q || [s.title, s.titleHindi, s.titleUrdu, s.channel, s.category, s.description]
+        .some(f => f && f.toLowerCase().includes(q));
+      return catMatch && langMatch && chanMatch && searchMatch;
+    });
+  }, [activeCategory, activeLang, activeChannel, searchQuery]);
 
   // Group by category for display
-  const grouped = {};
-  filtered.forEach(s => {
-    if (!grouped[s.category]) grouped[s.category] = [];
-    grouped[s.category].push(s);
-  });
+  const grouped = React.useMemo(() => {
+    const g = {};
+    filtered.forEach(s => {
+      if (!g[s.category]) g[s.category] = [];
+      g[s.category].push(s);
+    });
+    return g;
+  }, [filtered]);
 
   const categoryIcons = {
     "Prophets": Crown, "Animated Series": Star, "Islamic Learning": BookOpen,
@@ -566,167 +536,234 @@ const IslamicCartoonStories = () => {
     "Quran Learning": "#81b29a", "Duas & Prayers": "#9db4c0", "For Adults": "#3d405b"
   };
 
+  const structuredData = React.useMemo(() => generateStructuredData(filtered), [filtered]);
+
   return (
-    <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#f5f5f5', fontFamily: "'Inter', 'Noto Nastaliq Urdu', sans-serif", position: 'relative', overflowX: 'hidden' }}>
-      <ParticleBackground />
+    <HelmetProvider>
+      <Helmet>
+        {/* Primary Meta Tags */}
+        <title>Islamic Video Library | Islamic Cartoon Stories for Kids in Hindi & Urdu</title>
+        <meta name="title" content="Islamic Video Library | Islamic Cartoon Stories for Kids in Hindi & Urdu" />
+        <meta name="description" content="Watch Islamic cartoon stories, Prophet stories, Quran learning videos, Duas & Prayers for kids. Available in Hindi, Urdu & English. Free Islamic content for children." />
+        <meta name="keywords" content="Islamic cartoons, Islamic stories for kids, Prophet stories Hindi, Quran for kids, Islamic videos, Omar Hana, IQRA Cartoon, Islamic learning, Duas for children" />
+        <meta name="author" content="Islamic Video Library" />
+        <meta name="robots" content="index, follow" />
+        <meta name="language" content="English, Hindi, Urdu" />
+        <meta name="revisit-after" content="7 days" />
+        
+        {/* Open Graph / Facebook */}
+        <meta property="og:type" content="website" />
+        <meta property="og:url" content="https://soulayah.com/islamic-videos" />
+        <meta property="og:title" content="Islamic Video Library | Islamic Cartoon Stories for Kids" />
+        <meta property="og:description" content="Watch Islamic cartoon stories, Prophet stories, Quran learning videos for kids in Hindi, Urdu & English." />
+        <meta property="og:image" content="https://soulayah.com/og-image.jpg" />
+        <meta property="og:site_name" content="Islamic Video Library" />
+        
+        {/* Twitter */}
+        <meta property="twitter:card" content="summary_large_image" />
+        <meta property="twitter:url" content="https://soulayah.com/islamic-videos" />
+        <meta property="twitter:title" content="Islamic Video Library | Islamic Cartoon Stories for Kids" />
+        <meta property="twitter:description" content="Watch Islamic cartoon stories, Prophet stories, Quran learning videos for kids in Hindi, Urdu & English." />
+        <meta property="twitter:image" content="https://soulayah.com/og-image.jpg" />
+        
+        {/* Canonical URL */}
+        <link rel="canonical" href="https://soulayah.com/islamic-videos" />
+        
+        {/* Preconnect for performance */}
+        <link rel="preconnect" href="https://i.ytimg.com" />
+        <link rel="preconnect" href="https://www.youtube.com" />
+        <link rel="dns-prefetch" href="https://i.ytimg.com" />
+        <link rel="dns-prefetch" href="https://www.youtube.com" />
+        
+        {/* Structured Data */}
+        <script type="application/ld+json">
+          {JSON.stringify(structuredData)}
+        </script>
+      </Helmet>
 
-      {/* Header */}
-      <header style={{ textAlign: 'center', padding: '40px 20px 20px', position: 'relative', zIndex: 2 }}>
-        <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', padding: '7px 20px', borderRadius: 50, fontSize: '0.82rem', color: '#c9a84c', marginBottom: 16, fontWeight: 500 }}>
-          <Sparkles size={15} /> Islamic Content Hub
-        </div>
-        <h1 style={{ fontSize: 'clamp(1.6rem,5vw,2.4rem)', fontWeight: 700, color: '#c9a84c', marginBottom: 8, fontFamily: "'Noto Nastaliq Urdu', serif" }}>
-          Islamic Video Library
-        </h1>
-        <p style={{ color: '#888', fontSize: '1rem', marginBottom: 6 }}>इस्लामी वीडियो लाइब्रेरी / اسلامی ویڈیو لائبریری</p>
-        <p style={{ color: '#555', fontSize: '0.85rem', marginBottom: 24 }}>{allVideos.length}+ Videos • Multiple Channels • Hindi • Urdu • English</p>
+      <div style={{ minHeight: '100vh', background: '#0a0a0a', color: '#f5f5f5', fontFamily: "'Inter', 'Noto Nastaliq Urdu', sans-serif", position: 'relative', overflowX: 'hidden' }}>
+        <Suspense fallback={null}>
+          <ParticleBackground />
+        </Suspense>
 
-        {/* Search */}
-        <div style={{ maxWidth: 520, margin: '0 auto 0', position: 'relative' }}>
-          <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#555' }} />
-          <input type="text" placeholder="Search videos, channels, prophets..."
-            value={searchQuery} onChange={e => setSearchQuery(e.target.value)}
-            style={{ width: '100%', padding: '13px 16px 13px 46px', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 16, color: '#f5f5f5', fontSize: '0.93rem', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
-          />
-        </div>
-      </header>
+        {/* Skip to content for accessibility */}
+        <a href="#main-content" style={{ position: 'absolute', top: -40, left: 0, background: '#c9a84c', color: '#000', padding: '8px 16px', zIndex: 100, transition: 'top 0.3s', ':focus': { top: 0 } }}>
+          Skip to content
+        </a>
 
-      {/* Filter Toggle */}
-      <div style={{ position: 'relative', zIndex: 2, padding: '16px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
-        <button onClick={() => setShowFilters(v => !v)}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, background: showFilters ? 'rgba(201,168,76,0.15)' : '#1a1a1a', border: `1px solid ${showFilters ? '#c9a84c' : '#2a2a2a'}`, color: showFilters ? '#c9a84c' : '#888', padding: '9px 18px', borderRadius: 30, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: 'inherit' }}>
-          <Filter size={15} /> Filters {showFilters ? '▲' : '▼'}
-        </button>
-      </div>
-
-      {/* Filters */}
-      {showFilters && (
-        <div style={{ position: 'relative', zIndex: 2, padding: '16px 20px', background: '#111', borderBottom: '1px solid #1f1f1f' }}>
-          {/* Categories */}
-          <p style={{ fontSize: '0.72rem', color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Category</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-            {categories.map(cat => (
-              <button key={cat} onClick={() => setActiveCategory(cat)}
-                style={{ padding: '6px 16px', borderRadius: 30, border: `1px solid ${activeCategory === cat ? '#c9a84c' : '#2a2a2a'}`, background: activeCategory === cat ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === cat ? '#c9a84c' : '#888', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                {cat}
-              </button>
-            ))}
+        {/* Header */}
+        <header style={{ textAlign: 'center', padding: '40px 20px 20px', position: 'relative', zIndex: 2 }}>
+          <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.2)', padding: '7px 20px', borderRadius: 50, fontSize: '0.82rem', color: '#c9a84c', marginBottom: 16, fontWeight: 500 }}>
+            <Sparkles size={15} aria-hidden="true" /> Islamic Content Hub
           </div>
-          {/* Languages */}
-          <p style={{ fontSize: '0.72rem', color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Language</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
-            {languages.map(lang => (
-              <button key={lang} onClick={() => setActiveLang(lang)}
-                style={{ padding: '6px 16px', borderRadius: 30, border: `1px solid ${activeLang === lang ? '#4a9b8e' : '#2a2a2a'}`, background: activeLang === lang ? 'rgba(74,155,142,0.15)' : 'transparent', color: activeLang === lang ? '#4a9b8e' : '#888', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                {lang}
-              </button>
-            ))}
-          </div>
-          {/* Channels */}
-          <p style={{ fontSize: '0.72rem', color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Channel</p>
-          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-            {channels.map(ch => (
-              <button key={ch.id} onClick={() => setActiveChannel(ch.id)}
-                style={{ padding: '6px 16px', borderRadius: 30, border: `1px solid ${activeChannel === ch.id ? ch.color : '#2a2a2a'}`, background: activeChannel === ch.id ? `${ch.color}15` : 'transparent', color: activeChannel === ch.id ? ch.color : '#888', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-                {ch.name}
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+          <h1 style={{ fontSize: 'clamp(1.6rem,5vw,2.4rem)', fontWeight: 700, color: '#c9a84c', marginBottom: 8, fontFamily: "'Noto Nastaliq Urdu', serif" }}>
+            Islamic Video Library
+          </h1>
+          <p style={{ color: '#888', fontSize: '1rem', marginBottom: 6 }}>इस्लामी वीडियो लाइब्रेरी / اسلامی ویڈیو لائبریری</p>
+          <p style={{ color: '#555', fontSize: '0.85rem', marginBottom: 24 }}>{allVideos.length}+ Videos • Multiple Channels • Hindi • Urdu • English</p>
 
-      {/* Quick lang row */}
-      <div style={{ position: 'relative', zIndex: 2, overflowX: 'auto', padding: '16px 20px', display: 'flex', gap: 10, scrollbarWidth: 'none' }}>
-        {languages.map(lang => (
-          <button key={lang} onClick={() => setActiveLang(lang)}
-            style={{ padding: '8px 20px', borderRadius: 30, border: `1px solid ${activeLang === lang ? '#c9a84c' : 'transparent'}`, background: activeLang === lang ? 'rgba(201,168,76,0.12)' : '#1a1a1a', color: activeLang === lang ? '#c9a84c' : '#777', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
-            {lang === 'All' ? '🌐 All' : lang === 'Hindi' ? '🇮🇳 Hindi' : lang === 'Urdu' ? '🟢 Urdu' : lang === 'English' ? '🇬🇧 English' : '🕌 Arabic'}
+          {/* Search */}
+          <div style={{ maxWidth: 520, margin: '0 auto 0', position: 'relative' }}>
+            <Search size={18} style={{ position: 'absolute', left: 16, top: '50%', transform: 'translateY(-50%)', color: '#555' }} aria-hidden="true" />
+            <input 
+              type="text" 
+              placeholder="Search videos, channels, prophets..."
+              value={searchQuery} 
+              onChange={e => setSearchQuery(e.target.value)}
+              style={{ width: '100%', padding: '13px 16px 13px 46px', background: '#1a1a1a', border: '1px solid #2a2a2a', borderRadius: 16, color: '#f5f5f5', fontSize: '0.93rem', outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box' }}
+              aria-label="Search Islamic videos"
+            />
+          </div>
+        </header>
+
+        {/* Filter Toggle */}
+        <div style={{ position: 'relative', zIndex: 2, padding: '16px 20px 0', display: 'flex', justifyContent: 'flex-end' }}>
+          <button 
+            onClick={() => setShowFilters(v => !v)}
+            style={{ display: 'flex', alignItems: 'center', gap: 8, background: showFilters ? 'rgba(201,168,76,0.15)' : '#1a1a1a', border: `1px solid ${showFilters ? '#c9a84c' : '#2a2a2a'}`, color: showFilters ? '#c9a84c' : '#888', padding: '9px 18px', borderRadius: 30, cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: 'inherit' }}
+            aria-expanded={showFilters}
+            aria-controls="filter-panel"
+          >
+            <Filter size={15} aria-hidden="true" /> Filters {showFilters ? '▲' : '▼'}
           </button>
-        ))}
-      </div>
+        </div>
 
-      {/* Results count */}
-      <div style={{ position: 'relative', zIndex: 2, padding: '0 20px 16px' }}>
-        <p style={{ fontSize: '0.85rem', color: '#555' }}>
-          {filtered.length} video{filtered.length !== 1 ? 's' : ''} found
-          {activeCategory !== 'All' && ` in "${activeCategory}"`}
-          {activeLang !== 'All' && ` • ${activeLang}`}
-          {activeChannel !== 'all' && ` • ${activeChannel}`}
-        </p>
-      </div>
-
-      {/* Content Sections */}
-      <div style={{ position: 'relative', zIndex: 2, padding: '0 20px', paddingBottom: 120 }}>
-        {Object.keys(grouped).length === 0 ? (
-          <div style={{ textAlign: 'center', padding: '80px 20px', color: '#555' }}>
-            <Search size={52} />
-            <p style={{ fontSize: '1.2rem', marginTop: 16, color: '#888' }}>Koi video nahi mili</p>
-            <p style={{ fontSize: '0.9rem', marginTop: 6 }}>Try different filters ya search terms</p>
-            <button onClick={() => { setActiveCategory('All'); setActiveLang('All'); setActiveChannel('all'); setSearchQuery(''); }}
-              style={{ marginTop: 20, padding: '10px 24px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', color: '#c9a84c', borderRadius: 30, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem' }}>
-              Reset Filters
-            </button>
+        {/* Filters */}
+        {showFilters && (
+          <div id="filter-panel" style={{ position: 'relative', zIndex: 2, padding: '16px 20px', background: '#111', borderBottom: '1px solid #1f1f1f' }}>
+            {/* Categories */}
+            <p style={{ fontSize: '0.72rem', color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Category</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {categories.map(cat => (
+                <button key={cat} onClick={() => setActiveCategory(cat)}
+                  style={{ padding: '6px 16px', borderRadius: 30, border: `1px solid ${activeCategory === cat ? '#c9a84c' : '#2a2a2a'}`, background: activeCategory === cat ? 'rgba(201,168,76,0.15)' : 'transparent', color: activeCategory === cat ? '#c9a84c' : '#888', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  {cat}
+                </button>
+              ))}
+            </div>
+            {/* Languages */}
+            <p style={{ fontSize: '0.72rem', color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Language</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 16 }}>
+              {languages.map(lang => (
+                <button key={lang} onClick={() => setActiveLang(lang)}
+                  style={{ padding: '6px 16px', borderRadius: 30, border: `1px solid ${activeLang === lang ? '#4a9b8e' : '#2a2a2a'}`, background: activeLang === lang ? 'rgba(74,155,142,0.15)' : 'transparent', color: activeLang === lang ? '#4a9b8e' : '#888', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  {lang}
+                </button>
+              ))}
+            </div>
+            {/* Channels */}
+            <p style={{ fontSize: '0.72rem', color: '#555', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 10 }}>Channel</p>
+            <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+              {channels.map(ch => (
+                <button key={ch.id} onClick={() => setActiveChannel(ch.id)}
+                  style={{ padding: '6px 16px', borderRadius: 30, border: `1px solid ${activeChannel === ch.id ? ch.color : '#2a2a2a'}`, background: activeChannel === ch.id ? `${ch.color}15` : 'transparent', color: activeChannel === ch.id ? ch.color : '#888', cursor: 'pointer', fontSize: '0.82rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                  {ch.name}
+                </button>
+              ))}
+            </div>
           </div>
-        ) : (
-          Object.entries(grouped).map(([cat, videos]) => {
-            const Icon = categoryIcons[cat] || Star;
-            const col = categoryColors[cat] || '#c9a84c';
-            return (
-              <section key={cat} style={{ marginBottom: 48 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
-                  <div style={{ width: 42, height: 42, borderRadius: 13, background: `${col}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <Icon size={20} color={col} />
-                  </div>
-                  <div>
-                    <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f0f0f0', marginBottom: 2 }}>{cat}</h2>
-                    <p style={{ fontSize: '0.8rem', color: '#555' }}>{videos.length} videos</p>
-                  </div>
-                </div>
-                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 18 }}>
-                  {videos.map(s => (
-                    <StoryCard key={s.id} story={s} onClick={setSelectedStory} isFav={favorites.includes(s.id)} onFav={toggleFav} />
-                  ))}
-                </div>
-              </section>
-            );
-          })
         )}
-      </div>
 
-      {/* Player */}
-      {selectedStory && (
-        <YouTubePlayer story={selectedStory} onClose={() => setSelectedStory(null)} />
-      )}
-
-      {/* Bottom Nav */}
-      <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(14,14,14,0.97)', backdropFilter: 'blur(20px)', borderTop: '1px solid #1f1f1f', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px', zIndex: 200 }}>
-        {[
-          { name: 'Home', icon: Sun, action: () => { setActiveCategory('All'); setActiveLang('All'); setActiveChannel('all'); setSearchQuery(''); } },
-          { name: 'Prophets', icon: Crown, action: () => setActiveCategory('Prophets') },
-          { name: 'Kids', icon: Star, action: () => setActiveCategory('Animated Series') },
-          { name: 'Quran', icon: BookOpen, action: () => setActiveCategory('Quran Learning') },
-          { name: 'Saved', icon: Heart, action: () => {} },
-        ].map(item => {
-          const Icon = item.icon;
-          return (
-            <button key={item.name} onClick={item.action}
-              style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#555', cursor: 'pointer', transition: 'color 0.3s' }}
-              onMouseEnter={e => e.currentTarget.style.color = '#c9a84c'}
-              onMouseLeave={e => e.currentTarget.style.color = '#555'}>
-              <Icon size={22} />
-              <span style={{ fontSize: '0.67rem', fontWeight: 500 }}>{item.name}</span>
+        {/* Quick lang row */}
+        <div style={{ position: 'relative', zIndex: 2, overflowX: 'auto', padding: '16px 20px', display: 'flex', gap: 10, scrollbarWidth: 'none' }}>
+          {languages.map(lang => (
+            <button key={lang} onClick={() => setActiveLang(lang)}
+              style={{ padding: '8px 20px', borderRadius: 30, border: `1px solid ${activeLang === lang ? '#c9a84c' : 'transparent'}`, background: activeLang === lang ? 'rgba(201,168,76,0.12)' : '#1a1a1a', color: activeLang === lang ? '#c9a84c' : '#777', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 500, fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+              {lang === 'All' ? '🌐 All' : lang === 'Hindi' ? '🇮🇳 Hindi' : lang === 'Urdu' ? '🟢 Urdu' : lang === 'English' ? '🇬🇧 English' : '🕌 Arabic'}
             </button>
-          );
-        })}
-      </nav>
+          ))}
+        </div>
 
-      <style>{`
-        @keyframes slideUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
-        ::-webkit-scrollbar { width:5px; height:5px }
-        ::-webkit-scrollbar-track { background:#0a0a0a }
-        ::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:3px }
-      `}</style>
-    </div>
+        {/* Results count */}
+        <div style={{ position: 'relative', zIndex: 2, padding: '0 20px 16px' }}>
+          <p style={{ fontSize: '0.85rem', color: '#555' }}>
+            {filtered.length} video{filtered.length !== 1 ? 's' : ''} found
+            {activeCategory !== 'All' && ` in "${activeCategory}"`}
+            {activeLang !== 'All' && ` • ${activeLang}`}
+            {activeChannel !== 'all' && ` • ${activeChannel}`}
+          </p>
+        </div>
+
+        {/* Main Content */}
+        <main id="main-content" style={{ position: 'relative', zIndex: 2, padding: '0 20px', paddingBottom: 120 }}>
+          {Object.keys(grouped).length === 0 ? (
+            <div style={{ textAlign: 'center', padding: '80px 20px', color: '#555' }}>
+              <Search size={52} aria-hidden="true" />
+              <p style={{ fontSize: '1.2rem', marginTop: 16, color: '#888' }}>Koi video nahi mili</p>
+              <p style={{ fontSize: '0.9rem', marginTop: 6 }}>Try different filters ya search terms</p>
+              <button onClick={() => { setActiveCategory('All'); setActiveLang('All'); setActiveChannel('all'); setSearchQuery(''); }}
+                style={{ marginTop: 20, padding: '10px 24px', background: 'rgba(201,168,76,0.1)', border: '1px solid rgba(201,168,76,0.3)', color: '#c9a84c', borderRadius: 30, cursor: 'pointer', fontFamily: 'inherit', fontSize: '0.9rem' }}>
+                Reset Filters
+              </button>
+            </div>
+          ) : (
+            Object.entries(grouped).map(([cat, videos]) => {
+              const Icon = categoryIcons[cat] || Star;
+              const col = categoryColors[cat] || '#c9a84c';
+              return (
+                <section key={cat} style={{ marginBottom: 48 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 20 }}>
+                    <div style={{ width: 42, height: 42, borderRadius: 13, background: `${col}18`, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <Icon size={20} color={col} aria-hidden="true" />
+                    </div>
+                    <div>
+                      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: '#f0f0f0', marginBottom: 2 }}>{cat}</h2>
+                      <p style={{ fontSize: '0.8rem', color: '#555' }}>{videos.length} videos</p>
+                    </div>
+                  </div>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: 18 }}>
+                    {videos.map(s => (
+                      <StoryCard key={s.id} story={s} onClick={setSelectedStory} isFav={favorites.includes(s.id)} onFav={toggleFav} />
+                    ))}
+                  </div>
+                </section>
+              );
+            })
+          )}
+        </main>
+
+        {/* Player Modal */}
+        {selectedStory && (
+          <Suspense fallback={
+            <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.92)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 1000 }}>
+              <div style={{ color: '#c9a84c', fontSize: '1.2rem' }}>Loading player...</div>
+            </div>
+          }>
+            <YouTubePlayer story={selectedStory} onClose={() => setSelectedStory(null)} />
+          </Suspense>
+        )}
+
+        {/* Bottom Nav */}
+        <nav style={{ position: 'fixed', bottom: 0, left: 0, right: 0, background: 'rgba(14,14,14,0.97)', backdropFilter: 'blur(20px)', borderTop: '1px solid #1f1f1f', display: 'flex', justifyContent: 'space-around', padding: '12px 0 20px', zIndex: 200 }}>
+          {[
+            { name: 'Home', icon: Sun, action: () => { setActiveCategory('All'); setActiveLang('All'); setActiveChannel('all'); setSearchQuery(''); } },
+            { name: 'Prophets', icon: Crown, action: () => setActiveCategory('Prophets') },
+            { name: 'Kids', icon: Star, action: () => setActiveCategory('Animated Series') },
+            { name: 'Quran', icon: BookOpen, action: () => setActiveCategory('Quran Learning') },
+            { name: 'Saved', icon: Heart, action: () => {} },
+          ].map(item => {
+            const Icon = item.icon;
+            return (
+              <button key={item.name} onClick={item.action}
+                style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 4, background: 'none', border: 'none', color: '#555', cursor: 'pointer', transition: 'color 0.3s' }}
+                onMouseEnter={e => e.currentTarget.style.color = '#c9a84c'}
+                onMouseLeave={e => e.currentTarget.style.color = '#555'}
+                aria-label={item.name}>
+                <Icon size={22} aria-hidden="true" />
+                <span style={{ fontSize: '0.67rem', fontWeight: 500 }}>{item.name}</span>
+              </button>
+            );
+          })}
+        </nav>
+
+        <style>{`
+          @keyframes slideUp { from { opacity:0; transform:translateY(20px) } to { opacity:1; transform:translateY(0) } }
+          ::-webkit-scrollbar { width:5px; height:5px }
+          ::-webkit-scrollbar-track { background:#0a0a0a }
+          ::-webkit-scrollbar-thumb { background:#2a2a2a; border-radius:3px }
+        `}</style>
+      </div>
+    </HelmetProvider>
   );
 };
 

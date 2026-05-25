@@ -1,4 +1,5 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo, Suspense, lazy } from "react";
+import { Helmet, HelmetProvider } from "react-helmet-async";
 
 // ============================================================
 // DATA
@@ -166,334 +167,521 @@ const TASBEEHAT = [
 ];
 
 // ============================================================
+// SEO COMPONENT
+// ============================================================
+
+function SEOHead({ category }) {
+  const seoData = useMemo(() => {
+    const titles = {
+      morning: "Morning Azkar | Subah ki Duain - Daily Islamic Supplications",
+      evening: "Evening Azkar | Sham ki Duain - Daily Islamic Supplications",
+      daily: "Daily Duas | Rozana ki Duain - Islamic Supplications for Every Occasion",
+      tasbeeh: "Digital Tasbeeh Counter Online - Free Dhikr & Zikr Tracker",
+    };
+    
+    const descriptions = {
+      morning: "Read Morning Azkar (Subah ki Duain) with Arabic, Urdu translation & transliteration. Authentic duas from Bukhari, Muslim & Tirmidhi. Complete your daily morning supplications.",
+      evening: "Read Evening Azkar (Sham ki Duain) with Arabic text, Urdu translation. Authentic evening supplications from Hadith. Protect yourself before night.",
+      daily: "Daily Islamic Duas for eating, leaving home, entering home, washroom & more. Arabic with Urdu translation. Authentic supplications from Quran & Sunnah.",
+      tasbeeh: "Free online Digital Tasbeeh Counter. Count SubhanAllah, Alhamdulillah, Allahu Akbar & more. Track your daily dhikr with progress indicators.",
+    };
+
+    const title = titles[category] || titles.morning;
+    const desc = descriptions[category] || descriptions.morning;
+    const url = `https://soulayah.com/duas/${category}`;
+    const image = "https://soulayah.com.com/og-image.jpg";
+
+    return { title, desc, url, image };
+  }, [category]);
+
+  const schemaData = useMemo(() => ({
+    "@context": "https://schema.org",
+    "@type": "WebPage",
+    "name": seoData.title,
+    "description": seoData.desc,
+    "url": seoData.url,
+    "inLanguage": ["ur", "ar", "en"],
+    "about": {
+      "@type": "Thing",
+      "name": "Islamic Supplications",
+      "description": "Daily Azkar and Duas from Quran and Sunnah"
+    }
+  }), [seoData]);
+
+  return (
+    <Helmet prioritizeSeoTags>
+      <title>{seoData.title}</title>
+      <meta name="description" content={seoData.desc} />
+      <meta name="keywords" content="duas, azkar, tasbeeh, islamic supplications, morning azkar, evening azkar, subah ki duain, sham ki duain, daily duas, zikr counter" />
+      <meta name="robots" content="index, follow" />
+      <meta name="language" content="ur, ar, en" />
+      <link rel="canonical" href={seoData.url} />
+      
+      {/* Open Graph */}
+      <meta property="og:title" content={seoData.title} />
+      <meta property="og:description" content={seoData.desc} />
+      <meta property="og:type" content="website" />
+      <meta property="og:url" content={seoData.url} />
+      <meta property="og:image" content={seoData.image} />
+      <meta property="og:locale" content="ur_PK" />
+      
+      {/* Twitter */}
+      <meta name="twitter:card" content="summary_large_image" />
+      <meta name="twitter:title" content={seoData.title} />
+      <meta name="twitter:description" content={seoData.desc} />
+      <meta name="twitter:image" content={seoData.image} />
+      
+      {/* Preconnect for fonts */}
+      <link rel="preconnect" href="https://fonts.googleapis.com" />
+      <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
+      
+      {/* Structured Data */}
+      <script type="application/ld+json">{JSON.stringify(schemaData)}</script>
+    </Helmet>
+  );
+}
+
+// ============================================================
+// LAZY LOADED COMPONENTS
+// ============================================================
+
+const TasbeehView = lazy(() => Promise.resolve({ 
+  default: function TasbeehView({ activeTasbeeh, setActiveTasbeeh, counts, setCounts }) {
+    const currentTasbeeh = TASBEEHAT[activeTasbeeh];
+    const [vibrate, setVibrate] = useState(false);
+    
+    const count = counts[activeTasbeeh];
+    const target = currentTasbeeh.target;
+    const progress = Math.min((count / target) * 100, 100);
+    const isComplete = count >= target;
+
+    const tap = useCallback(() => {
+      setCounts(prev => {
+        const newCounts = [...prev];
+        newCounts[activeTasbeeh] += 1;
+        return newCounts;
+      });
+      setVibrate(true);
+      setTimeout(() => setVibrate(false), 150);
+      if (typeof navigator !== 'undefined' && navigator.vibrate) navigator.vibrate(30);
+    }, [activeTasbeeh, setCounts]);
+
+    const resetCount = useCallback(() => {
+      setCounts(prev => {
+        const newCounts = [...prev];
+        newCounts[activeTasbeeh] = 0;
+        return newCounts;
+      });
+    }, [activeTasbeeh, setCounts]);
+
+    return (
+      <div className="fade-up">
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "24px" }}>
+          {TASBEEHAT.map((t, i) => (
+            <button 
+              key={i}
+              onClick={() => setActiveTasbeeh(i)}
+              aria-label={`Select ${t.urdu}`}
+              style={{
+                background: activeTasbeeh === i ? `rgba(${hexRgb(t.color)},0.2)` : "rgba(255,255,255,0.03)",
+                border: `1px solid ${activeTasbeeh === i ? t.color : "rgba(255,255,255,0.07)"}`,
+                color: activeTasbeeh === i ? t.color : "#6a5f52",
+                borderRadius: "12px", padding: "8px 14px", cursor: "pointer",
+                fontSize: "12px", transition: "all 0.2s",
+              }}>
+              {t.urdu}
+            </button>
+          ))}
+        </div>
+
+        <div style={{ textAlign: "center", marginBottom: "32px" }}>
+          <div 
+            style={{
+              fontFamily: "'Amiri', serif", fontSize: "32px",
+              color: currentTasbeeh.color, lineHeight: "2",
+              marginBottom: "4px", direction: "rtl",
+            }}
+            role="heading" 
+            aria-level="2">
+            {currentTasbeeh.arabic}
+          </div>
+          <div style={{ fontSize: "13px", color: "#6a5f52", marginBottom: "24px" }}>
+            {currentTasbeeh.urdu}
+          </div>
+
+          <div 
+            style={{
+              fontSize: "72px", fontWeight: "300", lineHeight: 1,
+              color: isComplete ? currentTasbeeh.color : "#e2d9c8",
+              marginBottom: "8px", transition: "color 0.3s",
+              fontFamily: "Georgia, serif", willChange: "color",
+            }}
+            aria-live="polite"
+            aria-label={`Count ${count} out of ${target}`}>
+            {count}
+          </div>
+          <div style={{ fontSize: "13px", color: "#4a4030", marginBottom: "24px" }}>
+            Target: {target}
+          </div>
+
+          <div 
+            style={{
+              height: "4px", background: "rgba(255,255,255,0.06)",
+              borderRadius: "2px", marginBottom: "32px", overflow: "hidden",
+            }}
+            role="progressbar"
+            aria-valuenow={count}
+            aria-valuemin={0}
+            aria-valuemax={target}
+            aria-label="Tasbeeh progress">
+            <div style={{
+              height: "100%", width: `${progress}%`,
+              background: currentTasbeeh.color,
+              borderRadius: "2px", transition: "width 0.2s ease",
+              willChange: "width",
+            }} />
+          </div>
+
+          <button
+            className={vibrate ? "vibrate" : isComplete ? "complete-ring" : ""}
+            onClick={tap}
+            aria-label={isComplete ? "Tasbeeh complete" : "Tap to count"}
+            style={{
+              width: "180px", height: "180px", borderRadius: "50%",
+              background: isComplete ? `rgba(${hexRgb(currentTasbeeh.color)},0.15)` : "rgba(255,255,255,0.04)",
+              border: `3px solid ${isComplete ? currentTasbeeh.color : "rgba(255,255,255,0.1)"}`,
+              cursor: "pointer", display: "inline-flex",
+              flexDirection: "column", alignItems: "center", justifyContent: "center",
+              gap: "6px", transition: "all 0.2s",
+              boxShadow: isComplete ? `0 0 30px rgba(${hexRgb(currentTasbeeh.color)},0.3)` : "none",
+              willChange: "transform",
+            }}>
+            <span style={{ fontSize: "40px" }} aria-hidden="true">{isComplete ? "✅" : "📿"}</span>
+            <span style={{ fontSize: "13px", color: isComplete ? currentTasbeeh.color : "#6a5f52" }}>
+              {isComplete ? "Mukammal!" : "Tap karein"}
+            </span>
+          </button>
+
+          <div style={{ marginTop: "20px" }}>
+            <button 
+              onClick={resetCount}
+              aria-label="Reset counter"
+              style={{
+                background: "transparent", border: "1px solid rgba(255,255,255,0.08)",
+                color: "#4a4030", borderRadius: "20px", padding: "8px 20px",
+                cursor: "pointer", fontSize: "12px", transition: "all 0.2s",
+              }}
+              onMouseEnter={e => e.currentTarget.style.color = "#C0392B"}
+              onMouseLeave={e => e.currentTarget.style.color = "#4a4030"}>
+              Reset ↺
+            </button>
+          </div>
+        </div>
+
+        <div 
+          style={{
+            background: "rgba(255,255,255,0.02)",
+            border: "1px solid rgba(255,255,255,0.06)",
+            borderRadius: "16px", padding: "16px",
+          }}>
+          <div style={{ fontSize: "11px", color: "#3a3028", letterSpacing: "1px", marginBottom: "12px" }}>
+            AAPKI TASBEEHAT
+          </div>
+          {TASBEEHAT.map((t, i) => (
+            <div key={i} style={{
+              display: "flex", justifyContent: "space-between", alignItems: "center",
+              padding: "8px 0",
+              borderBottom: i < TASBEEHAT.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
+            }}>
+              <div style={{ fontFamily: "'Amiri', serif", fontSize: "16px", color: t.color, direction: "rtl" }}>
+                {t.arabic}
+              </div>
+              <div style={{
+                fontSize: "14px",
+                color: counts[i] >= t.target ? t.color : "#6a5f52",
+                fontWeight: counts[i] >= t.target ? "bold" : "normal",
+              }}>
+                {counts[i]}/{t.target} {counts[i] >= t.target ? "✓" : ""}
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+}));
+
+const DuaListView = lazy(() => Promise.resolve({
+  default: function DuaListView({ activeCategory, expandedDua, setExpandedDua, completedDuas, setCompletedDuas }) {
+    const currentDuas = useMemo(() => DUAS[activeCategory] || [], [activeCategory]);
+    const cat = useMemo(() => CATEGORIES.find(c => c.id === activeCategory), [activeCategory]);
+    
+    const completedCount = useMemo(() => 
+      Object.keys(completedDuas).filter(k => k.startsWith(activeCategory)).length,
+    [completedDuas, activeCategory]);
+
+    const toggleDua = useCallback((idx) => {
+      const key = `${activeCategory}-${idx}`;
+      setCompletedDuas(prev => ({ ...prev, [key]: !prev[key] }));
+    }, [activeCategory, setCompletedDuas]);
+
+    const isDuaCompleted = useCallback((idx) => 
+      completedDuas[`${activeCategory}-${idx}`],
+    [completedDuas, activeCategory]);
+
+    const resetCategory = useCallback(() => {
+      setCompletedDuas(prev => {
+        const newCompleted = { ...prev };
+        currentDuas.forEach((_, i) => {
+          newCompleted[`${activeCategory}-${i}`] = false;
+        });
+        return newCompleted;
+      });
+    }, [activeCategory, currentDuas, setCompletedDuas]);
+
+    return (
+      <div>
+        <div style={{
+          display: "flex", justifyContent: "space-between",
+          fontSize: "11px", color: "#4a4030", marginBottom: "16px",
+          letterSpacing: "0.5px",
+        }}>
+          <span aria-live="polite">
+            {completedCount} / {currentDuas.length} mukammal
+          </span>
+          <button
+            onClick={resetCategory}
+            aria-label="Reset all duas in this category"
+            style={{ background: "none", border: "none", color: "#3a3028", cursor: "pointer", fontSize: "11px" }}>
+            Reset ↺
+          </button>
+        </div>
+
+        {currentDuas.map((dua, idx) => {
+          const completed = isDuaCompleted(idx);
+          const isExpanded = expandedDua === idx;
+
+          return (
+            <article 
+              key={idx} 
+              className="dua-card fade-up"
+              style={{
+                background: completed ? `rgba(${hexRgb(cat.color)},0.06)` : "rgba(255,255,255,0.025)",
+                border: `1px solid ${completed ? `rgba(${hexRgb(cat.color)},0.3)` : "rgba(255,255,255,0.07)"}`,
+                borderRadius: "18px", padding: "20px",
+                marginBottom: "10px", cursor: "pointer",
+                transition: "all 0.25s", animationDelay: `${idx * 0.04}s`, opacity: 0,
+                contain: "layout style paint",
+                willChange: "transform, opacity",
+              }}
+              onClick={() => setExpandedDua(isExpanded ? null : idx)}
+              role="button"
+              tabIndex={0}
+              aria-expanded={isExpanded}
+              onKeyDown={(e) => { if(e.key === 'Enter' || e.key === ' ') setExpandedDua(isExpanded ? null : idx); }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{
+                    fontSize: "10px", color: cat.color,
+                    background: `rgba(${hexRgb(cat.color)},0.12)`,
+                    padding: "3px 10px", borderRadius: "12px", letterSpacing: "0.3px",
+                  }}>
+                    {dua.title}
+                  </span>
+                  {dua.count > 1 && (
+                    <span style={{ fontSize: "10px", color: "#5a5040" }}>×{dua.count}</span>
+                  )}
+                </div>
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span style={{ fontSize: "10px", color: "#3a3028" }}>{dua.source}</span>
+                  <button
+                    onClick={e => { e.stopPropagation(); toggleDua(idx); }}
+                    aria-label={completed ? "Mark as incomplete" : "Mark as complete"}
+                    aria-pressed={completed}
+                    style={{
+                      width: "26px", height: "26px", borderRadius: "50%",
+                      background: completed ? cat.color : "rgba(255,255,255,0.06)",
+                      border: `1px solid ${completed ? cat.color : "rgba(255,255,255,0.1)"}`,
+                      display: "flex", alignItems: "center", justifyContent: "center",
+                      cursor: "pointer", fontSize: "12px", flexShrink: 0,
+                      transition: "all 0.2s",
+                    }}>
+                    {completed ? "✓" : ""}
+                  </button>
+                </div>
+              </div>
+
+              <h3 style={{
+                fontFamily: "'Amiri', serif", fontSize: "22px",
+                direction: "rtl", textAlign: "right", color: "#f0e8d5",
+                lineHeight: "2.2", marginBottom: isExpanded ? "12px" : "0",
+                fontWeight: "normal", margin: 0,
+              }}>
+                {dua.arabic}
+              </h3>
+
+              {isExpanded && (
+                <div style={{
+                  paddingTop: "12px",
+                  borderTop: "1px solid rgba(255,255,255,0.06)",
+                  fontSize: "13px", color: "#9a8870",
+                  lineHeight: "1.9", fontStyle: "italic",
+                }}>
+                  {dua.urdu}
+                </div>
+              )}
+
+              {!isExpanded && (
+                <div style={{ textAlign: "center", marginTop: "8px", fontSize: "10px", color: "#2a2520" }}>
+                  ▼ Urdu dekhein
+                </div>
+              )}
+            </article>
+          );
+        })}
+      </div>
+    );
+  }
+}));
+
+// ============================================================
 // MAIN COMPONENT
 // ============================================================
+
 export default function DuasAzkar() {
   const [activeCategory, setActiveCategory] = useState("morning");
   const [expandedDua, setExpandedDua] = useState(null);
   const [completedDuas, setCompletedDuas] = useState({});
-
-  // Tasbeeh state
   const [activeTasbeeh, setActiveTasbeeh] = useState(0);
   const [counts, setCounts] = useState(TASBEEHAT.map(() => 0));
-  const [vibrate, setVibrate] = useState(false);
-  const pressTimer = useRef(null);
 
-  const currentDuas = DUAS[activeCategory] || [];
-  const currentTasbeeh = TASBEEHAT[activeTasbeeh];
+  // Save/restore progress from localStorage
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const saved = localStorage.getItem('duas-azkar-progress');
+    if (saved) {
+      try {
+        const parsed = JSON.parse(saved);
+        setCompletedDuas(parsed.completedDuas || {});
+        setCounts(parsed.counts || TASBEEHAT.map(() => 0));
+      } catch (e) { /* ignore */ }
+    }
+  }, []);
 
-  const toggleDua = (idx) => {
-    const key = `${activeCategory}-${idx}`;
-    setCompletedDuas(prev => ({ ...prev, [key]: !prev[key] }));
-  };
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('duas-azkar-progress', JSON.stringify({ completedDuas, counts }));
+  }, [completedDuas, counts]);
 
-  const isDuaCompleted = (idx) => completedDuas[`${activeCategory}-${idx}`];
-
-  const tap = () => {
-    const newCounts = [...counts];
-    newCounts[activeTasbeeh] += 1;
-    setCounts(newCounts);
-    setVibrate(true);
-    setTimeout(() => setVibrate(false), 150);
-    if (navigator.vibrate) navigator.vibrate(30);
-  };
-
-  const resetCount = () => {
-    const newCounts = [...counts];
-    newCounts[activeTasbeeh] = 0;
-    setCounts(newCounts);
-  };
-
-  const count = counts[activeTasbeeh];
-  const target = currentTasbeeh.target;
-  const progress = Math.min((count / target) * 100, 100);
-  const isComplete = count >= target;
+  const handleCategoryChange = useCallback((catId) => {
+    setActiveCategory(catId);
+    setExpandedDua(null);
+    if (typeof window !== 'undefined') {
+      window.history.replaceState(null, '', `/duas/${catId}`);
+    }
+  }, []);
 
   return (
-    <div style={{ minHeight: "100vh", background: "#07090d", color: "#e2d9c8", fontFamily: "'Georgia', serif" }}>
-      <style>{`
-        @import url('https://fonts.googleapis.com/css2?family=Amiri:ital@0;1&display=swap');
-        ::-webkit-scrollbar { width: 3px; }
-        ::-webkit-scrollbar-thumb { background: #1e2830; border-radius: 4px; }
-        @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
-        @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(0.94)} 100%{transform:scale(1)} }
-        @keyframes ring { 0%{transform:scale(1)} 25%{transform:scale(1.12)} 50%{transform:scale(0.96)} 75%{transform:scale(1.06)} 100%{transform:scale(1)} }
-        @keyframes glow { 0%,100%{box-shadow:0 0 20px rgba(201,168,76,0.2)} 50%{box-shadow:0 0 40px rgba(201,168,76,0.5)} }
-        .fade-up { animation: fadeUp 0.35s ease forwards; }
-        .vibrate { animation: pop 0.15s ease; }
-        .complete-ring { animation: ring 0.4s ease, glow 2s ease infinite; }
-        .cat-btn:hover { opacity: 0.85; }
-        .dua-card:hover { background: rgba(255,255,255,0.04) !important; }
-      `}</style>
+    <HelmetProvider>
+      <SEOHead category={activeCategory} />
+      
+      <div 
+        style={{ minHeight: "100vh", background: "#07090d", color: "#e2d9c8", fontFamily: "'Georgia', serif" }}
+        lang="ur"
+        dir="ltr">
+        
+        <style>{`
+          @import url('https://fonts.googleapis.com/css2?family=Amiri:ital@0;1&display=swap');
+          ::-webkit-scrollbar { width: 3px; }
+          ::-webkit-scrollbar-thumb { background: #1e2830; border-radius: 4px; }
+          @keyframes fadeUp { from{opacity:0;transform:translateY(10px)} to{opacity:1;transform:translateY(0)} }
+          @keyframes pop { 0%{transform:scale(1)} 40%{transform:scale(0.94)} 100%{transform:scale(1)} }
+          @keyframes ring { 0%{transform:scale(1)} 25%{transform:scale(1.12)} 50%{transform:scale(0.96)} 75%{transform:scale(1.06)} 100%{transform:scale(1)} }
+          @keyframes glow { 0%,100%{box-shadow:0 0 20px rgba(201,168,76,0.2)} 50%{box-shadow:0 0 40px rgba(201,168,76,0.5)} }
+          .fade-up { animation: fadeUp 0.35s ease forwards; }
+          .vibrate { animation: pop 0.15s ease; }
+          .complete-ring { animation: ring 0.4s ease, glow 2s ease infinite; }
+          .cat-btn:hover { opacity: 0.85; }
+          .dua-card:hover { background: rgba(255,255,255,0.04) !important; }
+          @media (prefers-reduced-motion: reduce) {
+            .fade-up, .vibrate, .complete-ring { animation: none !important; }
+          }
+        `}</style>
 
-      {/* Header */}
-      <div style={{
-        position: "sticky", top: 0, zIndex: 10,
-        background: "rgba(7,9,13,0.97)", backdropFilter: "blur(20px)",
-        borderBottom: "1px solid rgba(201,168,76,0.1)",
-        padding: "14px 16px",
-      }}>
-        <div style={{ maxWidth: "520px", margin: "0 auto" }}>
-          <div style={{ fontSize: "18px", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px" }}>
-            <span>🤲</span> Duas & Azkar
-          </div>
+        {/* Skip to content for accessibility */}
+        <a href="#main-content" style={{
+          position: "absolute", top: "-40px", left: "16px",
+          background: "#C9A84C", color: "#000", padding: "8px 16px",
+          borderRadius: "4px", textDecoration: "none", fontSize: "14px",
+          zIndex: 100, transition: "top 0.2s",
+        }} onFocus={e => e.target.style.top = "16px"} onBlur={e => e.target.style.top = "-40px"}>
+          Skip to content
+        </a>
 
-          {/* Category Tabs */}
-          <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "2px" }}>
-            {CATEGORIES.map(cat => (
-              <button key={cat.id} className="cat-btn"
-                onClick={() => { setActiveCategory(cat.id); setExpandedDua(null); }}
-                style={{
-                  background: activeCategory === cat.id ? `rgba(${hexRgb(cat.color)},0.2)` : "rgba(255,255,255,0.04)",
-                  border: `1px solid ${activeCategory === cat.id ? cat.color : "rgba(255,255,255,0.08)"}`,
-                  color: activeCategory === cat.id ? cat.color : "#6a5f52",
-                  borderRadius: "20px", padding: "6px 14px", cursor: "pointer",
-                  fontSize: "12px", whiteSpace: "nowrap", flexShrink: 0,
-                  transition: "all 0.2s",
-                }}>
-                {cat.emoji} {cat.english}
-              </button>
-            ))}
-          </div>
-        </div>
-      </div>
+        {/* Header */}
+        <header style={{
+          position: "sticky", top: 0, zIndex: 10,
+          background: "rgba(7,9,13,0.97)", backdropFilter: "blur(20px)",
+          borderBottom: "1px solid rgba(201,168,76,0.1)",
+          padding: "14px 16px",
+        }}>
+          <div style={{ maxWidth: "520px", margin: "0 auto" }}>
+            <h1 style={{ fontSize: "18px", marginBottom: "12px", display: "flex", alignItems: "center", gap: "8px", margin: "0 0 12px 0", fontWeight: "normal" }}>
+              <span aria-hidden="true">🤲</span> Duas & Azkar
+            </h1>
 
-      <div style={{ maxWidth: "520px", margin: "0 auto", padding: "16px 16px 100px" }}>
-
-        {/* ── TASBEEH VIEW ── */}
-        {activeCategory === "tasbeeh" && (
-          <div className="fade-up">
-            {/* Tasbeeh selector */}
-            <div style={{ display: "flex", gap: "8px", flexWrap: "wrap", marginBottom: "24px" }}>
-              {TASBEEHAT.map((t, i) => (
-                <button key={i}
-                  onClick={() => setActiveTasbeeh(i)}
-                  style={{
-                    background: activeTasbeeh === i ? `rgba(${hexRgb(t.color)},0.2)` : "rgba(255,255,255,0.03)",
-                    border: `1px solid ${activeTasbeeh === i ? t.color : "rgba(255,255,255,0.07)"}`,
-                    color: activeTasbeeh === i ? t.color : "#6a5f52",
-                    borderRadius: "12px", padding: "8px 14px", cursor: "pointer",
-                    fontSize: "12px", transition: "all 0.2s",
-                  }}>
-                  {t.urdu}
-                </button>
-              ))}
-            </div>
-
-            {/* Main Counter */}
-            <div style={{ textAlign: "center", marginBottom: "32px" }}>
-              {/* Arabic text */}
-              <div style={{
-                fontFamily: "'Amiri', serif", fontSize: "32px",
-                color: currentTasbeeh.color, lineHeight: "2",
-                marginBottom: "4px", direction: "rtl",
-              }}>
-                {currentTasbeeh.arabic}
-              </div>
-              <div style={{ fontSize: "13px", color: "#6a5f52", marginBottom: "24px" }}>
-                {currentTasbeeh.urdu}
-              </div>
-
-              {/* Count display */}
-              <div style={{
-                fontSize: "72px", fontWeight: "300", lineHeight: 1,
-                color: isComplete ? currentTasbeeh.color : "#e2d9c8",
-                marginBottom: "8px",
-                transition: "color 0.3s",
-                fontFamily: "Georgia, serif",
-              }}>
-                {count}
-              </div>
-              <div style={{ fontSize: "13px", color: "#4a4030", marginBottom: "24px" }}>
-                Target: {target}
-              </div>
-
-              {/* Progress bar */}
-              <div style={{
-                height: "4px", background: "rgba(255,255,255,0.06)",
-                borderRadius: "2px", marginBottom: "32px", overflow: "hidden",
-              }}>
-                <div style={{
-                  height: "100%", width: `${progress}%`,
-                  background: currentTasbeeh.color,
-                  borderRadius: "2px", transition: "width 0.2s ease",
-                }} />
-              </div>
-
-              {/* TAP BUTTON */}
-              <button
-                className={vibrate ? "vibrate" : isComplete ? "complete-ring" : ""}
-                onClick={tap}
-                style={{
-                  width: "180px", height: "180px", borderRadius: "50%",
-                  background: isComplete
-                    ? `rgba(${hexRgb(currentTasbeeh.color)},0.15)`
-                    : "rgba(255,255,255,0.04)",
-                  border: `3px solid ${isComplete ? currentTasbeeh.color : "rgba(255,255,255,0.1)"}`,
-                  cursor: "pointer", display: "inline-flex",
-                  flexDirection: "column", alignItems: "center", justifyContent: "center",
-                  gap: "6px", transition: "all 0.2s",
-                  boxShadow: isComplete ? `0 0 30px rgba(${hexRgb(currentTasbeeh.color)},0.3)` : "none",
-                }}>
-                <span style={{ fontSize: "40px" }}>{isComplete ? "✅" : "📿"}</span>
-                <span style={{ fontSize: "13px", color: isComplete ? currentTasbeeh.color : "#6a5f52" }}>
-                  {isComplete ? "Mukammal!" : "Tap karein"}
-                </span>
-              </button>
-
-              {/* Reset */}
-              <div style={{ marginTop: "20px" }}>
-                <button onClick={resetCount} style={{
-                  background: "transparent", border: "1px solid rgba(255,255,255,0.08)",
-                  color: "#4a4030", borderRadius: "20px", padding: "8px 20px",
-                  cursor: "pointer", fontSize: "12px", transition: "all 0.2s",
-                }}
-                  onMouseEnter={e => e.currentTarget.style.color = "#C0392B"}
-                  onMouseLeave={e => e.currentTarget.style.color = "#4a4030"}
-                >
-                  Reset ↺
-                </button>
-              </div>
-            </div>
-
-            {/* All counts summary */}
-            <div style={{
-              background: "rgba(255,255,255,0.02)",
-              border: "1px solid rgba(255,255,255,0.06)",
-              borderRadius: "16px", padding: "16px",
-            }}>
-              <div style={{ fontSize: "11px", color: "#3a3028", letterSpacing: "1px", marginBottom: "12px" }}>
-                AAPKI TASBEEHAT
-              </div>
-              {TASBEEHAT.map((t, i) => (
-                <div key={i} style={{
-                  display: "flex", justifyContent: "space-between", alignItems: "center",
-                  padding: "8px 0",
-                  borderBottom: i < TASBEEHAT.length - 1 ? "1px solid rgba(255,255,255,0.04)" : "none",
-                }}>
-                  <div style={{ fontFamily: "'Amiri', serif", fontSize: "16px", color: t.color, direction: "rtl" }}>
-                    {t.arabic}
-                  </div>
-                  <div style={{
-                    fontSize: "14px",
-                    color: counts[i] >= t.target ? t.color : "#6a5f52",
-                    fontWeight: counts[i] >= t.target ? "bold" : "normal",
-                  }}>
-                    {counts[i]}/{t.target} {counts[i] >= t.target ? "✓" : ""}
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        )}
-
-        {/* ── DUA LIST VIEW ── */}
-        {activeCategory !== "tasbeeh" && (
-          <div>
-            {/* Progress indicator */}
-            <div style={{
-              display: "flex", justifyContent: "space-between",
-              fontSize: "11px", color: "#4a4030", marginBottom: "16px",
-              letterSpacing: "0.5px",
-            }}>
-              <span>
-                {Object.keys(completedDuas).filter(k => k.startsWith(activeCategory)).length} / {currentDuas.length} mukammal
-              </span>
-              <button
-                onClick={() => {
-                  const newCompleted = { ...completedDuas };
-                  currentDuas.forEach((_, i) => {
-                    newCompleted[`${activeCategory}-${i}`] = false;
-                  });
-                  setCompletedDuas(newCompleted);
-                }}
-                style={{ background: "none", border: "none", color: "#3a3028", cursor: "pointer", fontSize: "11px" }}
-              >
-                Reset ↺
-              </button>
-            </div>
-
-            {currentDuas.map((dua, idx) => {
-              const completed = isDuaCompleted(idx);
-              const isExpanded = expandedDua === idx;
-              const cat = CATEGORIES.find(c => c.id === activeCategory);
-
-              return (
-                <div key={idx} className="dua-card fade-up"
-                  style={{
-                    background: completed ? `rgba(${hexRgb(cat.color)},0.06)` : "rgba(255,255,255,0.025)",
-                    border: `1px solid ${completed ? `rgba(${hexRgb(cat.color)},0.3)` : "rgba(255,255,255,0.07)"}`,
-                    borderRadius: "18px", padding: "20px",
-                    marginBottom: "10px", cursor: "pointer",
-                    transition: "all 0.25s", animationDelay: `${idx * 0.04}s`, opacity: 0,
-                  }}
-                  onClick={() => setExpandedDua(isExpanded ? null : idx)}
-                >
-                  {/* Top row */}
-                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{
-                        fontSize: "10px", color: cat.color,
-                        background: `rgba(${hexRgb(cat.color)},0.12)`,
-                        padding: "3px 10px", borderRadius: "12px", letterSpacing: "0.3px",
-                      }}>
-                        {dua.title}
-                      </div>
-                      {dua.count > 1 && (
-                        <div style={{ fontSize: "10px", color: "#5a5040" }}>×{dua.count}</div>
-                      )}
-                    </div>
-                    <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                      <div style={{ fontSize: "10px", color: "#3a3028" }}>{dua.source}</div>
-                      <button
-                        onClick={e => { e.stopPropagation(); toggleDua(idx); }}
-                        style={{
-                          width: "26px", height: "26px", borderRadius: "50%",
-                          background: completed ? cat.color : "rgba(255,255,255,0.06)",
-                          border: `1px solid ${completed ? cat.color : "rgba(255,255,255,0.1)"}`,
-                          display: "flex", alignItems: "center", justifyContent: "center",
-                          cursor: "pointer", fontSize: "12px", flexShrink: 0,
-                          transition: "all 0.2s",
-                        }}>
-                        {completed ? "✓" : ""}
-                      </button>
-                    </div>
-                  </div>
-
-                  {/* Arabic */}
-                  <div style={{
-                    fontFamily: "'Amiri', serif", fontSize: "22px",
-                    direction: "rtl", textAlign: "right", color: "#f0e8d5",
-                    lineHeight: "2.2", marginBottom: isExpanded ? "12px" : "0",
-                  }}>
-                    {dua.arabic}
-                  </div>
-
-                  {/* Urdu — shown on expand */}
-                  {isExpanded && (
-                    <div style={{
-                      paddingTop: "12px",
-                      borderTop: "1px solid rgba(255,255,255,0.06)",
-                      fontSize: "13px", color: "#9a8870",
-                      lineHeight: "1.9", fontStyle: "italic",
+            <nav aria-label="Category navigation">
+              <div style={{ display: "flex", gap: "8px", overflowX: "auto", paddingBottom: "2px" }}>
+                {CATEGORIES.map(cat => (
+                  <button 
+                    key={cat.id} 
+                    className="cat-btn"
+                    onClick={() => handleCategoryChange(cat.id)}
+                    aria-current={activeCategory === cat.id ? "page" : undefined}
+                    aria-label={`${cat.english} - ${cat.label}`}
+                    style={{
+                      background: activeCategory === cat.id ? `rgba(${hexRgb(cat.color)},0.2)` : "rgba(255,255,255,0.04)",
+                      border: `1px solid ${activeCategory === cat.id ? cat.color : "rgba(255,255,255,0.08)"}`,
+                      color: activeCategory === cat.id ? cat.color : "#6a5f52",
+                      borderRadius: "20px", padding: "6px 14px", cursor: "pointer",
+                      fontSize: "12px", whiteSpace: "nowrap", flexShrink: 0,
+                      transition: "all 0.2s",
                     }}>
-                      {dua.urdu}
-                    </div>
-                  )}
-
-                  {/* Expand hint */}
-                  {!isExpanded && (
-                    <div style={{ textAlign: "center", marginTop: "8px", fontSize: "10px", color: "#2a2520" }}>
-                      ▼ Urdu dekhein
-                    </div>
-                  )}
-                </div>
-              );
-            })}
+                    <span aria-hidden="true">{cat.emoji}</span> {cat.english}
+                  </button>
+                ))}
+              </div>
+            </nav>
           </div>
-        )}
+        </header>
+
+        <main id="main-content" style={{ maxWidth: "520px", margin: "0 auto", padding: "16px 16px 100px" }}>
+          <Suspense fallback={
+            <div style={{ textAlign: "center", padding: "40px", color: "#4a4030" }} aria-live="polite">
+              Loading...
+            </div>
+          }>
+            {activeCategory === "tasbeeh" ? (
+              <TasbeehView 
+                activeTasbeeh={activeTasbeeh}
+                setActiveTasbeeh={setActiveTasbeeh}
+                counts={counts}
+                setCounts={setCounts}
+              />
+            ) : (
+              <DuaListView 
+                activeCategory={activeCategory}
+                expandedDua={expandedDua}
+                setExpandedDua={setExpandedDua}
+                completedDuas={completedDuas}
+                setCompletedDuas={setCompletedDuas}
+              />
+            )}
+          </Suspense>
+        </main>
       </div>
-    </div>
+    </HelmetProvider>
   );
 }
 
