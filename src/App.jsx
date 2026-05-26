@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import React, { useState, useEffect, lazy, Suspense, useContext, createContext } from "react";
 import {
   BrowserRouter,
   Routes,
@@ -30,13 +30,48 @@ const CartoonStories = lazy(() => import("./pages/CartoonStories"));
 const Names          = lazy(() => import("./pages/Names"));
 const Kids           = lazy(() => import("./pages/Kids"));
 const IslamicQuiz    = lazy(() => import("./components/IslamicQuiz"));
+const HadithPage     = lazy(() => import("./pages/HadithPage")); // ← NEW: Hadith page
 
 import "./App.css";
 
-// ── Site config — ek jagah rakho, sab jagah use karo ────────────────
-const SITE_URL   = "https://soulayah.com"; // ← apna domain
+// ── Site config ─────────────────────────────────────────────────────
+const SITE_URL   = "https://soulayah.com";
 const SITE_NAME  = "Soulayah";
 const OG_IMAGE   = `${SITE_URL}/og-image.png`;
+
+// ── Language Context ────────────────────────────────────────────────
+export const LanguageContext = createContext({
+  lang: "en",
+  setLang: () => {},
+});
+
+// ── Translations ────────────────────────────────────────────────────
+export const TRANSLATIONS = {
+  en: {
+    home: "Home", reader: "Reader", mood: "Mood", stories: "Stories",
+    duas: "Duas", sadqa: "Sadqa", names: "Names", prayer: "Prayer",
+    kids: "Kids", quiz: "Quiz", cards: "Cards", family: "Family",
+    vocab: "Vocab", tafsir: "Tafsir", hadith: "Hadith",
+    language: "Language", selectLanguage: "Select Language",
+    english: "English", urdu: "اردو", hindi: "हिंदी",
+  },
+  ur: {
+    home: "ہوم", reader: "قارئ", mood: "مزاج", stories: "کہانیاں",
+    duas: "دعائیں", sadqa: "صدقہ", names: "نام", prayer: "نماز",
+    kids: "بچے", quiz: "کوئز", cards: "کارڈز", family: "خاندان",
+    vocab: "الفاظ", tafsir: "تفسیر", hadith: "حدیث",
+    language: "زبان", selectLanguage: "زبان منتخب کریں",
+    english: "English", urdu: "اردو", hindi: "हिंदी",
+  },
+  hi: {
+    home: "होम", reader: "पाठक", mood: "मूड", stories: "कहानियाँ",
+    duas: "दुआएँ", sadqa: "सदका", names: "नाम", prayer: "नमाज़",
+    kids: "बच्चे", quiz: "क्विज़", cards: "कार्ड", family: "परिवार",
+    vocab: "शब्द", tafsir: "तफ़सीर", hadith: "हदीस",
+    language: "भाषा", selectLanguage: "भाषा चुनें",
+    english: "English", urdu: "اردو", hindi: "हिंदी",
+  },
+};
 
 // ── Per-page SEO data ────────────────────────────────────────────────
 const PAGE_META = {
@@ -48,80 +83,86 @@ const PAGE_META = {
   },
   "/reader": {
     title: `Quran Reader — Arabic Text & Translation | ${SITE_NAME}`,
-    description: "Read the Holy Quran with Arabic text, Hindi/Urdu/English translation, word-by-word meaning, and audio recitation. Beautiful and fast Quran reader.",
-    keywords: "quran reader online, quran with urdu translation, quran hindi, quran audio, quran surah list",
+    description: "Read the Holy Quran with Arabic text, Hindi/Urdu/English translation, word-by-word meaning, and audio recitation.",
+    keywords: "quran reader online, quran with urdu translation, quran hindi, quran audio",
     lang: "ar",
   },
   "/mood": {
     title: `Quran Ayaat by Mood — Dil Ka Sukoon | ${SITE_NAME}`,
-    description: "Feeling anxious, sad, hopeless, or grateful? Find Quranic ayaat suited to your current emotion. Quran verses for every mood.",
-    keywords: "quran for anxiety, quran verses for sadness, quran for hope, quran emotional healing, ayaat for sadness",
+    description: "Feeling anxious, sad, hopeless, or grateful? Find Quranic ayaat suited to your current emotion.",
+    keywords: "quran for anxiety, quran verses for sadness, quran for hope",
     lang: "en",
   },
   "/duas": {
     title: `Daily Duas & Azkar — Morning Evening Supplications | ${SITE_NAME}`,
-    description: "Authentic daily duas and azkar for morning, evening, eating, sleeping, and more. Includes digital tasbeeh counter. Arabic with Urdu and Hindi translation.",
-    keywords: "morning duas, evening azkar, subah ki duas, sham ki duas, tasbeeh counter online, daily duas",
+    description: "Authentic daily duas and azkar for morning, evening, eating, sleeping. Includes digital tasbeeh counter.",
+    keywords: "morning duas, evening azkar, subah ki duas, sham ki duas, tasbeeh counter",
     lang: "en",
   },
   "/prayer": {
     title: `Prayer Times & Qibla Direction — Namaz Waqt | ${SITE_NAME}`,
-    description: "Accurate Islamic prayer times for your location. Fajr, Zuhr, Asr, Maghrib, Isha timings with Qibla direction finder. Never miss a salah.",
-    keywords: "prayer times, namaz time, fajr time today, qibla direction, salah times, islamic prayer app",
+    description: "Accurate Islamic prayer times for your location. Fajr, Zuhr, Asr, Maghrib, Isha timings with Qibla direction.",
+    keywords: "prayer times, namaz time, fajr time today, qibla direction",
     lang: "en",
   },
   "/cartoons": {
     title: `Islamic Cartoon Stories for Kids — Hindi Urdu English | ${SITE_NAME}`,
-    description: "Watch Islamic cartoon stories for children. Prophet stories, Quran learning videos, Omar & Hana, IQRA Cartoon in Hindi, Urdu and English.",
-    keywords: "islamic cartoons for kids, prophet stories cartoon, islamic stories hindi, IQRA cartoon, Omar Hana, quran for children",
+    description: "Watch Islamic cartoon stories for children. Prophet stories, Quran learning videos.",
+    keywords: "islamic cartoons for kids, prophet stories cartoon, islamic stories hindi",
     lang: "en",
   },
   "/sadqa": {
     title: `Sadqa-e-Jariya Tracker — Amal for Loved Ones | ${SITE_NAME}`,
-    description: "Track Quran recitation, duas, and sadqa for your loved ones. Keep a continuous chain of charity and good deeds — Sadqa-e-Jariya.",
-    keywords: "sadqa e jariya, amal tracker, quran tracker for marhoom, continuous charity islamic, islamic deed tracker",
+    description: "Track Quran recitation, duas, and sadqa for your loved ones. Keep a continuous chain of charity.",
+    keywords: "sadqa e jariya, amal tracker, quran tracker for marhoom",
     lang: "ur",
   },
   "/names": {
     title: `Allah Ke 99 Naam — Asma ul Husna | ${SITE_NAME}`,
-    description: "Allah ke 99 naam — Asma ul Husna — Urdu tarjuma, fazilat aur fawaid ke saath. Search karein, favorites save karein. Ar-Rahman, Ar-Raheem aur tamam asma.",
-    keywords: "99 names of allah, asma ul husna urdu, allah ke naam, 99 names benefits, asmaul husna hindi",
+    description: "Allah ke 99 naam — Asma ul Husna — Urdu tarjuma, fazilat aur fawaid ke saath.",
+    keywords: "99 names of allah, asma ul husna urdu, allah ke naam",
     lang: "ur",
   },
   "/kids": {
     title: `Islamic Learning for Kids — Arabic Huroof, Surahs & Duas | ${SITE_NAME}`,
-    description: "Fun Islamic education for children. Learn Arabic alphabet (Huroof), short Surahs, Prophet stories, and daily duas with audio and emojis.",
-    keywords: "islamic learning kids, arabic alphabet children, quran for kids, prophet stories kids, islamic duas kids, huroof learning",
+    description: "Fun Islamic education for children. Learn Arabic alphabet, short Surahs, Prophet stories.",
+    keywords: "islamic learning kids, arabic alphabet children, quran for kids",
     lang: "en",
   },
   "/quiz": {
     title: `Islamic Quiz — Quran, Prophets, Seerah | ${SITE_NAME}`,
-    description: "Test your Islamic knowledge with quizzes on Quran, Prophets, 5 Pillars, Duas, and Seerah. Free Islamic quiz for kids and adults in Hindi/Urdu/English.",
-    keywords: "islamic quiz, quran quiz, prophet quiz, islamic knowledge test, 5 pillars quiz, seerah quiz, islamic trivia",
+    description: "Test your Islamic knowledge with quizzes on Quran, Prophets, 5 Pillars, Duas, and Seerah.",
+    keywords: "islamic quiz, quran quiz, prophet quiz, islamic knowledge test",
     lang: "en",
   },
   "/cards": {
     title: `Quran Ayah Cards — Share Beautiful Islamic Cards | ${SITE_NAME}`,
-    description: "Create and share beautiful Quran ayah cards. Multiple themes, font sizes, and download options. Sadqa tracker and Dua board included.",
-    keywords: "quran ayah cards, islamic cards share, quran wallpaper, quran card maker, sadqa tracker, dua board",
+    description: "Create and share beautiful Quran ayah cards. Multiple themes, font sizes, and download options.",
+    keywords: "quran ayah cards, islamic cards share, quran wallpaper",
     lang: "en",
   },
   "/family": {
     title: `Family Quran Reading Tracker — Read Together | ${SITE_NAME}`,
-    description: "Track your family's Quran reading progress together. Mark surahs, verses, and complete Khatm-e-Quran as a family.",
-    keywords: "family quran reading, quran tracker family, khatm quran together, family islamic app, quran khatam tracker",
+    description: "Track your family\'s Quran reading progress together. Mark surahs and complete Khatm-e-Quran.",
+    keywords: "family quran reading, quran tracker family, khatm quran together",
     lang: "en",
   },
   "/vocab": {
     title: `Word-by-Word Quran — Learn Arabic | ${SITE_NAME}`,
-    description: "Read the Quran word by word with Urdu/Hindi meaning. Tap any Arabic word to see its meaning. Save vocabulary and take quiz.",
-    keywords: "quran word by word urdu, arabic words meaning, kalma ba kalma quran, learn quran arabic, quranic vocabulary",
+    description: "Read the Quran word by word with Urdu/Hindi meaning. Tap any Arabic word to see its meaning.",
+    keywords: "quran word by word urdu, arabic words meaning, kalma ba kalma quran",
     lang: "ur",
   },
   "/tafsir": {
     title: `Quran Tafsir Chat — AI Islamic Scholar | ${SITE_NAME}`,
-    description: "Ask questions about Quranic verses and get detailed tafsir explanations in Hinglish. AI-powered Islamic scholar available 24/7.",
-    keywords: "quran tafsir chat, islamic AI, quran explanation urdu hindi, ayaat ka matlab, islamic scholar online",
+    description: "Ask questions about Quranic verses and get detailed tafsir explanations in Hinglish.",
+    keywords: "quran tafsir chat, islamic AI, quran explanation urdu hindi",
+    lang: "en",
+  },
+  "/hadith": { // ← NEW
+    title: `Sahih Muslim Hadith — 7,563 Authentic Hadiths | ${SITE_NAME}`,
+    description: "Read Sahih Muslim hadiths with Arabic text, Urdu and Hindi translation. Search by book, chapter, or keyword.",
+    keywords: "sahih muslim, hadith urdu, hadith hindi, islamic hadith, hadees",
     lang: "en",
   },
 };
@@ -141,7 +182,6 @@ function PageSEO() {
       <meta name="robots" content="index, follow" />
       <link rel="canonical" href={canonicalUrl} />
 
-      {/* Open Graph */}
       <meta property="og:title" content={meta.title} />
       <meta property="og:description" content={meta.description} />
       <meta property="og:url" content={canonicalUrl} />
@@ -152,12 +192,88 @@ function PageSEO() {
       <meta property="og:site_name" content={SITE_NAME} />
       <meta property="og:locale" content={meta.lang === "ur" ? "ur_PK" : meta.lang === "ar" ? "ar_SA" : "en_US"} />
 
-      {/* Twitter Card */}
       <meta name="twitter:card" content="summary_large_image" />
       <meta name="twitter:title" content={meta.title} />
       <meta name="twitter:description" content={meta.description} />
       <meta name="twitter:image" content={OG_IMAGE} />
     </Helmet>
+  );
+}
+
+// ── Language Switcher Component ─────────────────────────────────────
+function LanguageSwitcher() {
+  const { lang, setLang } = useContext(LanguageContext);
+  const [open, setOpen] = useState(false);
+
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  return (
+    <div style={{ position: "relative" }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          background: "rgba(201,168,76,0.15)",
+          border: "1px solid rgba(201,168,76,0.3)",
+          color: "#C9A84C",
+          padding: "6px 14px",
+          borderRadius: "20px",
+          cursor: "pointer",
+          fontSize: "13px",
+          display: "flex",
+          alignItems: "center",
+          gap: "6px",
+        }}
+      >
+        🌐 {t.language}
+      </button>
+      {open && (
+        <div
+          style={{
+            position: "absolute",
+            top: "100%",
+            right: 0,
+            marginTop: "8px",
+            background: "rgba(10,10,15,0.98)",
+            border: "1px solid rgba(201,168,76,0.2)",
+            borderRadius: "12px",
+            padding: "8px",
+            minWidth: "140px",
+            zIndex: 200,
+            boxShadow: "0 8px 32px rgba(0,0,0,0.5)",
+          }}
+        >
+          <p style={{ color: "#888", fontSize: "11px", padding: "4px 8px", margin: 0 }}>
+            {t.selectLanguage}
+          </p>
+          {["en", "ur", "hi"].map((l) => (
+            <button
+              key={l}
+              onClick={() => {
+                setLang(l);
+                localStorage.setItem("appLanguage", l);
+                setOpen(false);
+              }}
+              style={{
+                width: "100%",
+                textAlign: "left",
+                background: lang === l ? "rgba(201,168,76,0.2)" : "transparent",
+                border: "none",
+                color: lang === l ? "#C9A84C" : "#e0e0e0",
+                padding: "8px 12px",
+                borderRadius: "8px",
+                cursor: "pointer",
+                fontSize: "14px",
+                display: "flex",
+                alignItems: "center",
+                gap: "8px",
+              }}
+            >
+              {lang === l && "✓"} {TRANSLATIONS[l].language}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
@@ -212,25 +328,28 @@ function SplashScreen({ onComplete }) {
 }
 
 // ── Bottom Nav ───────────────────────────────────────────────────────
-const NAV_TABS = [
-  { path: "/",         icon: <FaMosque />,          label: "Home"    },
-  { path: "/reader",   icon: <FaBookOpen />,         label: "Reader"  },
-  { path: "/mood",     icon: <FaHeart />,            label: "Mood"    },
-  { path: "/cartoons", icon: <TbPlayCard2 />,        label: "Stories" },
-  { path: "/duas",     icon: <FaPrayingHands />,     label: "Duas"    },
-  { path: "/sadqa",    icon: <GiPrayerBeads />,      label: "Sadqa"   },
-  { path: "/names",    icon: <PiHandsPrayingFill />, label: "Names"   },
-  { path: "/prayer",   icon: <MdOutlineWbSunny />,   label: "Prayer"  },
-  { path: "/kids",     icon: <TbMoodKid />,          label: "Kids"    },
-  { path: "/quiz",     icon: <MdOutlineQuiz />,      label: "Quiz"    },
-  { path: "/cards",    icon: <TbPlayCard2 />,        label: "Cards"   },
-  { path: "/family",   icon: <BsPeople />,           label: "Family"  },
-  { path: "/vocab",    icon: <FaLanguage />,         label: "Vocab"   },
-  { path: "/tafsir",   icon: <FaComments />,         label: "Tafsir"  },
-];
-
 function BottomNav() {
   const location = useLocation();
+  const { lang } = useContext(LanguageContext);
+  const t = TRANSLATIONS[lang] || TRANSLATIONS.en;
+
+  const NAV_TABS = [
+    { path: "/",         icon: <FaMosque />,          label: t.home    },
+    { path: "/reader",   icon: <FaBookOpen />,         label: t.reader  },
+    { path: "/mood",     icon: <FaHeart />,            label: t.mood    },
+    { path: "/cartoons", icon: <TbPlayCard2 />,        label: t.stories },
+    { path: "/duas",     icon: <FaPrayingHands />,     label: t.duas    },
+    { path: "/sadqa",    icon: <GiPrayerBeads />,      label: t.sadqa   },
+    { path: "/names",    icon: <PiHandsPrayingFill />, label: t.names   },
+    { path: "/prayer",   icon: <MdOutlineWbSunny />,   label: t.prayer  },
+    { path: "/kids",     icon: <TbMoodKid />,          label: t.kids    },
+    { path: "/quiz",     icon: <MdOutlineQuiz />,      label: t.quiz    },
+    { path: "/cards",    icon: <TbPlayCard2 />,        label: t.cards   },
+    { path: "/family",   icon: <BsPeople />,           label: t.family  },
+    { path: "/vocab",    icon: <FaLanguage />,         label: t.vocab   },
+    { path: "/tafsir",   icon: <FaComments />,         label: t.tafsir  },
+    { path: "/hadith",   icon: <FaBookOpen />,         label: t.hadith  }, // ← NEW
+  ];
 
   return (
     <nav
@@ -253,18 +372,18 @@ function BottomNav() {
             aria-label={tab.label}
             aria-current={isActive ? "page" : undefined}
             style={{
-              flex: 1, minWidth: "60px",
+              flex: 1, minWidth: "56px",
               display: "flex", flexDirection: "column",
               alignItems: "center", gap: "4px",
-              textDecoration: "none", padding: "6px 4px",
+              textDecoration: "none", padding: "6px 3px",
               color: isActive ? "#C9A84C" : "#3a3028",
-              fontSize: "10px", letterSpacing: "0.5px",
+              fontSize: "9px", letterSpacing: "0.5px",
               transition: "color 0.2s",
             }}
           >
-            <span style={{ fontSize: "19px" }} aria-hidden="true">{tab.icon}</span>
+            <span style={{ fontSize: "18px" }} aria-hidden="true">{tab.icon}</span>
             <span>{tab.label}</span>
-            {isActive && <div style={{ width: "18px", height: "2px", borderRadius: "2px", background: "#C9A84C" }} />}
+            {isActive && <div style={{ width: "16px", height: "2px", borderRadius: "2px", background: "#C9A84C" }} />}
           </NavLink>
         );
       })}
@@ -294,6 +413,7 @@ function Layout({ children }) {
 function App() {
   const [showSplash, setShowSplash] = useState(true);
   const [isReady, setIsReady]       = useState(false);
+  const [lang, setLang]             = useState(() => localStorage.getItem("appLanguage") || "en");
 
   useEffect(() => {
     const hasSeenSplash = sessionStorage.getItem("hasSeenSplash");
@@ -309,7 +429,7 @@ function App() {
   if (!isReady) return null;
 
   return (
-    <>
+    <LanguageContext.Provider value={{ lang, setLang }}>
       {showSplash && <SplashScreen onComplete={handleSplashComplete} />}
 
       <BrowserRouter>
@@ -330,10 +450,11 @@ function App() {
             <Route path="/family"   element={<Layout><FaimilyRead /></Layout>} />
             <Route path="/vocab"    element={<Layout><Vocabulary /></Layout>} />
             <Route path="/tafsir"   element={<Layout><TafsirChat /></Layout>} />
+            <Route path="/hadith"   element={<Layout><HadithPage /></Layout>} /> {/* ← NEW */}
           </Routes>
         </Suspense>
       </BrowserRouter>
-    </>
+    </LanguageContext.Provider>
   );
 }
 
